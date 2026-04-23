@@ -138,6 +138,10 @@
     return extractJobIdFromUrl(window.location.href) || extractJobIdFromNodeTree(findDetailPanel());
   }
 
+  function isSearchResultsRoute() {
+    return /\/jobs\/search-results\/?/i.test(window.location.pathname);
+  }
+
   function applyRecordToCard(card, record) {
     if (!card || !record) {
       return;
@@ -194,10 +198,54 @@
     return matchedCards;
   }
 
+  function findSelectedCardsForDetail(jobId) {
+    const matchedCards = [];
+    const seenCards = new Set();
+
+    if (jobId) {
+      const anchors = Array.from(document.querySelectorAll(selectors.jobAnchors));
+      for (const anchor of anchors) {
+        const anchorJobId = extractJobIdFromNodeTree(anchor);
+        if (anchorJobId !== jobId) {
+          continue;
+        }
+
+        const card = findJobCardContainer(anchor);
+        if (!card || seenCards.has(card)) {
+          continue;
+        }
+
+        seenCards.add(card);
+        matchedCards.push(card);
+      }
+    }
+
+    const selectedNodes = Array.from(document.querySelectorAll('[aria-current="true"], [aria-selected="true"]'));
+    for (const node of selectedNodes) {
+      const card = node.closest("li") || node.closest('[data-rm-job-id]') || node.closest("div");
+      if (!card || seenCards.has(card)) {
+        continue;
+      }
+
+      const candidateJobId = extractJobIdFromNodeTree(card);
+      if (jobId && candidateJobId && candidateJobId !== jobId) {
+        continue;
+      }
+
+      seenCards.add(card);
+      matchedCards.push(card);
+    }
+
+    return matchedCards;
+  }
+
   function applyRecordToLikelyCards(record, identity) {
-    const directCards = getCards(record.jobId).concat(findCardsByJobId(record.jobId));
+    const routeCards = isSearchResultsRoute() ? findSelectedCardsForDetail(record.jobId) : [];
+    const directCards = routeCards.concat(getCards(record.jobId), findCardsByJobId(record.jobId));
     if (directCards.length > 0) {
       for (const card of directCards) {
+        card.setAttribute(attributes.jobId, record.jobId);
+        registerCard(record.jobId, card);
         applyRecordToCard(card, record);
       }
       return;
