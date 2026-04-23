@@ -58,7 +58,7 @@
     },
     prefetch: {
       maxConcurrency: 1,
-      minIntervalMs: 4000,
+      minIntervalMs: 2000,
       requestTimeoutMs: 15000,
       windowAbovePx: 200,
       windowBelowPx: 900,

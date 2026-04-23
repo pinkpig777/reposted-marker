@@ -1,7 +1,7 @@
 (function initBackgroundQueue(globalScope) {
   const RM = (globalScope.RepostedMarkerBackground = globalScope.RepostedMarkerBackground || {});
 
-  const minIntervalMs = 4000;
+  const minIntervalMs = 2000;
   const maxPendingTasks = 24;
   const pendingTasks = [];
   const pendingByJobId = new Map();
