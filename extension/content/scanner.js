@@ -2,7 +2,7 @@
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
   const { attributes, selectors, source, status } = RM.constants;
   const { detectRepostedFromElement, extractVisibleText } = RM.detector;
-  const { getJobDataFromAnchor, extractJobIdFromUrl } = RM.jobId;
+  const { getJobDataFromAnchor, extractJobIdFromNodeTree, extractJobIdFromUrl } = RM.jobId;
   const { clearStatus, setStatus } = RM.styler;
   const { registerCard, getCards } = RM.cardRegistry;
   const cache = RM.cache;
@@ -27,7 +27,7 @@
     }
 
     const text = extractVisibleText(element);
-    if (text.length < 20 || text.length > 1200) {
+    if (text.length < 20 || text.length > 2200) {
       return false;
     }
 
@@ -36,7 +36,8 @@
     }
 
     const anchorCount = element.querySelectorAll(selectors.jobAnchors).length;
-    return anchorCount >= 1 && anchorCount <= 6;
+    const elementJobId = extractJobIdFromNodeTree(element);
+    return (anchorCount >= 1 && anchorCount <= 8) || Boolean(elementJobId);
   }
 
   function findJobCardContainer(anchor) {
@@ -83,7 +84,7 @@
   }
 
   function getCurrentDetailJobId() {
-    return extractJobIdFromUrl(window.location.href);
+    return extractJobIdFromUrl(window.location.href) || extractJobIdFromNodeTree(findDetailPanel());
   }
 
   function applyRecordToCard(card, record) {
@@ -105,10 +106,50 @@
       return;
     }
 
-    const cards = getCards(record.jobId);
+    const cards = getCards(record.jobId).concat(findCardsByJobId(record.jobId));
     for (const card of cards) {
       applyRecordToCard(card, record);
     }
+  }
+
+  function findCardsByJobId(jobId) {
+    if (!jobId) {
+      return [];
+    }
+
+    const anchors = Array.from(document.querySelectorAll(selectors.jobAnchors));
+    const matchedCards = [];
+    const seenCards = new Set();
+
+    for (const anchor of anchors) {
+      const anchorJobId = extractJobIdFromNodeTree(anchor);
+      if (anchorJobId !== jobId) {
+        continue;
+      }
+
+      const card = findJobCardContainer(anchor);
+      if (!card || seenCards.has(card)) {
+        continue;
+      }
+
+      seenCards.add(card);
+      card.setAttribute(attributes.jobId, jobId);
+      registerCard(jobId, card);
+      matchedCards.push(card);
+    }
+
+    const attributedCards = Array.from(document.querySelectorAll(`[${attributes.jobId}="${jobId}"]`));
+    for (const card of attributedCards) {
+      if (seenCards.has(card)) {
+        continue;
+      }
+
+      seenCards.add(card);
+      registerCard(jobId, card);
+      matchedCards.push(card);
+    }
+
+    return matchedCards;
   }
 
   function rememberRecord(record) {
