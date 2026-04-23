@@ -1,7 +1,7 @@
 (function initMessaging(globalScope) {
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
   const { messageType } = RM.constants;
-  const { setStatus } = RM.styler;
+  const { clearStatus, setStatus } = RM.styler;
   const { findDetailPanel, getCurrentDetailJobId, rememberRecord } = RM.scanner;
   const { setPrefetchQueuedForJob } = RM.cardRegistry;
 
@@ -12,8 +12,9 @@
 
     setPrefetchQueuedForJob(payload.jobId, false);
     const record = rememberRecord(payload);
+    const settings = RM.settings.getSnapshot();
 
-    if (!record || record.jobId !== getCurrentDetailJobId()) {
+    if (!settings.enabled || !record || record.jobId !== getCurrentDetailJobId()) {
       return;
     }
 
@@ -22,7 +23,12 @@
       return;
     }
 
-    setStatus(detailPanel, record.status, true, record.source);
+    if (settings.markDetailPanel) {
+      setStatus(detailPanel, record.status, true, record.source);
+      return;
+    }
+
+    clearStatus(detailPanel, true);
   }
 
   function startMessageListener() {

@@ -1,7 +1,9 @@
-importScripts("cache.js", "fetcher.js", "queue.js");
+importScripts("../shared/settings.js", "cache.js", "fetcher.js", "queue.js");
 
 (function initBackground(globalScope) {
   const RM = (globalScope.RepostedMarkerBackground = globalScope.RepostedMarkerBackground || {});
+
+  globalScope.RepostedMarker.settings.init();
 
   chrome.runtime.onMessage.addListener((message, sender) => {
     if (!message || message.type !== "PREFETCH_JOB" || !message.payload) {

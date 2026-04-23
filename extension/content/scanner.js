@@ -3,7 +3,7 @@
   const { attributes, selectors, source, status } = RM.constants;
   const { detectRepostedFromElement, extractVisibleText } = RM.detector;
   const { getJobDataFromAnchor, extractJobIdFromUrl } = RM.jobId;
-  const { setStatus } = RM.styler;
+  const { clearStatus, setStatus } = RM.styler;
   const { registerCard, getCards } = RM.cardRegistry;
   const cache = RM.cache;
 
@@ -91,6 +91,12 @@
       return;
     }
 
+    const settings = RM.settings.getSnapshot();
+    if (!settings.enabled || !settings.markLeftList) {
+      clearStatus(card, false);
+      return;
+    }
+
     setStatus(card, record.status, false, record.source);
   }
 
@@ -112,6 +118,7 @@
   }
 
   function scanJobCards() {
+    const settings = RM.settings.getSnapshot();
     const anchors = Array.from(document.querySelectorAll(selectors.jobAnchors));
     const visitedCards = new Set();
     const prefetchCandidates = [];
@@ -132,7 +139,7 @@
       if (cachedRecord) {
         applyRecordToCard(card, cachedRecord);
 
-        if (cache.shouldRefresh(cachedRecord)) {
+        if (settings.prefetchEnabled && cache.shouldRefresh(cachedRecord)) {
           prefetchCandidates.push({
             card,
             forceRefresh: true,
@@ -144,28 +151,37 @@
       }
 
       if (detectRepostedFromElement(card)) {
-        rememberRecord({
+        const record = rememberRecord({
           jobId: jobData.jobId,
           url: jobData.url,
           status: status.reposted,
           source: source.cardDom,
           timestamp: Date.now()
         });
+        applyRecordToCard(card, record);
         continue;
       }
 
-      setStatus(card, status.unknown, false, source.cardDom);
-      prefetchCandidates.push({
-        card,
-        forceRefresh: false,
-        jobData
-      });
+      if (settings.markLeftList) {
+        setStatus(card, status.unknown, false, source.cardDom);
+      } else {
+        clearStatus(card, false);
+      }
+
+      if (settings.prefetchEnabled) {
+        prefetchCandidates.push({
+          card,
+          forceRefresh: false,
+          jobData
+        });
+      }
     }
 
     RM.prefetch.queueCandidates(prefetchCandidates);
   }
 
   function scanDetailPanel() {
+    const settings = RM.settings.getSnapshot();
     const detailPanel = findDetailPanel();
     if (!detailPanel) {
       return;
@@ -176,7 +192,11 @@
       ? status.reposted
       : status.notReposted;
 
-    setStatus(detailPanel, detailStatus, true, source.detailDom);
+    if (settings.markDetailPanel) {
+      setStatus(detailPanel, detailStatus, true, source.detailDom);
+    } else {
+      clearStatus(detailPanel, true);
+    }
 
     if (!jobId) {
       return;
@@ -196,8 +216,21 @@
     scanDetailPanel();
   }
 
+  function clearPageMarks() {
+    const cards = document.querySelectorAll(`[${attributes.status}]`);
+    for (const card of cards) {
+      clearStatus(card, false);
+    }
+
+    const detailPanels = document.querySelectorAll(`[${attributes.detailStatus}]`);
+    for (const panel of detailPanels) {
+      clearStatus(panel, true);
+    }
+  }
+
   RM.scanner = {
     applyRecordToRegisteredCards,
+    clearPageMarks,
     findDetailPanel,
     findJobCardContainer,
     getCurrentDetailJobId,

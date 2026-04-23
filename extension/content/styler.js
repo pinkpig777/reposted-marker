@@ -2,6 +2,19 @@
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
   const { attributes, classes } = RM.constants;
 
+  function clearStatus(element, isDetail) {
+    if (!element) {
+      return;
+    }
+
+    const className = isDetail ? classes.detailReposted : classes.reposted;
+    const attributeName = isDetail ? attributes.detailStatus : attributes.status;
+
+    element.classList.remove(className);
+    element.removeAttribute(attributeName);
+    element.removeAttribute(attributes.source);
+  }
+
   function setStatus(element, status, isDetail, source) {
     if (!element) {
       return;
@@ -24,6 +37,7 @@
   }
 
   RM.styler = {
+    clearStatus,
     setStatus
   };
 })(window);

@@ -45,10 +45,13 @@
       return false;
     }
 
+    const settings = RM.settings.getSnapshot();
     const rect = card.getBoundingClientRect();
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const belowPx = Math.max(settings.prefetchWindowSize || windowBelowPx, 0);
+    const abovePx = Math.max(Math.round(belowPx / 4), windowAbovePx);
 
-    return rect.bottom >= -windowAbovePx && rect.top <= viewportHeight + windowBelowPx;
+    return rect.bottom >= -abovePx && rect.top <= viewportHeight + belowPx;
   }
 
   function queueJobWithOptions(jobData, card, options) {
@@ -76,6 +79,11 @@
   }
 
   function queueCandidates(candidates) {
+    const settings = RM.settings.getSnapshot();
+    if (!settings.prefetchEnabled) {
+      return;
+    }
+
     if (!Array.isArray(candidates) || candidates.length === 0) {
       return;
     }

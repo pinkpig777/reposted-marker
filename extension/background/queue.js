@@ -1,7 +1,6 @@
 (function initBackgroundQueue(globalScope) {
   const RM = (globalScope.RepostedMarkerBackground = globalScope.RepostedMarkerBackground || {});
 
-  const maxConcurrency = 1;
   const minIntervalMs = 4000;
   const maxPendingTasks = 24;
   const pendingTasks = [];
@@ -60,7 +59,21 @@
     }
   }
 
+  function releasePendingTasks() {
+    while (pendingTasks.length > 0) {
+      const pendingTask = pendingTasks.pop();
+      pendingByJobId.delete(pendingTask.jobId);
+      broadcastRelease(pendingTask);
+    }
+  }
+
   async function processTask(task) {
+    const settings = globalScope.RepostedMarker.settings.getSnapshot();
+    if (!settings.enabled || !settings.prefetchEnabled) {
+      broadcastRelease(task);
+      return;
+    }
+
     let cachedRecord = null;
 
     if (!task.forceRefresh) {
@@ -117,6 +130,14 @@
   }
 
   function schedule() {
+    const settings = globalScope.RepostedMarker.settings.getSnapshot();
+    const maxConcurrency = settings.maxPrefetchConcurrency;
+
+    if (!settings.enabled || !settings.prefetchEnabled) {
+      releasePendingTasks();
+      return;
+    }
+
     if (queuePausedUntil > Date.now()) {
       scheduleResume();
       return;
@@ -139,6 +160,11 @@
   }
 
   function enqueue(task, tabId) {
+    const settings = globalScope.RepostedMarker.settings.getSnapshot();
+    if (!settings.enabled || !settings.prefetchEnabled) {
+      return;
+    }
+
     const existingTask = pendingByJobId.get(task.jobId);
     if (existingTask) {
       mergeTabId(existingTask, tabId);

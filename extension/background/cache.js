@@ -1,7 +1,6 @@
 (function initBackgroundCache(globalScope) {
   const RM = (globalScope.RepostedMarkerBackground = globalScope.RepostedMarkerBackground || {});
   const storagePrefix = "job-status:";
-  const cacheTtlMs = 24 * 60 * 60 * 1000;
   const errorRetryMs = 30 * 60 * 1000;
   const rateLimitRetryMs = 60 * 60 * 1000;
 
@@ -19,6 +18,9 @@
     if (!record) {
       return 0;
     }
+
+    const settings = globalScope.RepostedMarker.settings.getSnapshot();
+    const cacheTtlMs = settings.cacheTTLHours * 60 * 60 * 1000;
 
     if (record.nextRetryAt) {
       return Math.max(record.nextRetryAt - record.timestamp, 0);

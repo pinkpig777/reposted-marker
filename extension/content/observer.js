@@ -29,7 +29,7 @@
     });
 
     let previousUrl = window.location.href;
-    window.setInterval(() => {
+    const routeTimerId = window.setInterval(() => {
       if (window.location.href === previousUrl) {
         return;
       }
@@ -41,7 +41,14 @@
     window.addEventListener("scroll", debouncedScrollScan, { passive: true });
     window.addEventListener("resize", debouncedScrollScan, { passive: true });
 
-    return observer;
+    return {
+      stop() {
+        observer.disconnect();
+        window.clearInterval(routeTimerId);
+        window.removeEventListener("scroll", debouncedScrollScan);
+        window.removeEventListener("resize", debouncedScrollScan);
+      }
+    };
   }
 
   RM.observer = {

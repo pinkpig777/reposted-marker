@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LinkedIn Reposted Marker</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #fffaf8;
+        --panel: #ffffff;
+        --text: #261816;
+        --muted: #7d5a56;
+        --line: #f0d6d1;
+        --accent: #b42318;
+        --accent-soft: #fde6e2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        width: 360px;
+        background:
+          radial-gradient(circle at top left, #ffe9e4 0, transparent 38%),
+          linear-gradient(180deg, #fffaf8 0%, #fff3f0 100%);
+        color: var(--text);
+        font: 13px/1.4 "Avenir Next", "Segoe UI", sans-serif;
+      }
+
+      main {
+        padding: 16px;
+      }
+
+      h1 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .card {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(6px);
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .row + .row,
+      .field + .field {
+        margin-top: 10px;
+      }
+
+      .label {
+        font-weight: 600;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .switch {
+        position: relative;
+        width: 44px;
+        height: 26px;
+        flex: 0 0 auto;
+      }
+
+      .switch input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+      }
+
+      .switch span {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: #e8d2cd;
+        transition: 0.2s ease;
+      }
+
+      .switch span::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fff;
+        transition: 0.2s ease;
+      }
+
+      .switch input:checked + span {
+        background: var(--accent);
+      }
+
+      .switch input:checked + span::after {
+        transform: translateX(18px);
+      }
+
+      .field label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 6px;
+        font-weight: 600;
+      }
+
+      .value {
+        color: var(--accent);
+        font-variant-numeric: tabular-nums;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent);
+      }
+
+      .footer {
+        margin-top: 14px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: var(--accent-soft);
+        color: var(--muted);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Control Menu</h1>
+      <p>Adjust LinkedIn scanning and prefetch behavior without reloading the extension.</p>
+
+      <div class="stack">
+        <section class="card">
+          <div class="row">
+            <div>
+              <div class="label">Extension Enabled</div>
+              <div class="hint">Stops DOM marking and observers when turned off.</div>
+            </div>
+            <label class="switch">
+              <input id="enabled" type="checkbox">
+              <span></span>
+            </label>
+          </div>
+
+          <div class="row">
+            <div>
+              <div class="label">Background Prefetch</div>
+              <div class="hint">Resolve reposted status before opening a job.</div>
+            </div>
+            <label class="switch">
+              <input id="prefetchEnabled" type="checkbox">
+              <span></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="row">
+            <div>
+              <div class="label">Mark Left List</div>
+            </div>
+            <label class="switch">
+              <input id="markLeftList" type="checkbox">
+              <span></span>
+            </label>
+          </div>
+
+          <div class="row">
+            <div>
+              <div class="label">Mark Detail Panel</div>
+            </div>
+            <label class="switch">
+              <input id="markDetailPanel" type="checkbox">
+              <span></span>
+            </label>
+          </div>
+
+          <div class="row">
+            <div>
+              <div class="label">Debug Mode</div>
+              <div class="hint">Reserved for later debug output and overlays.</div>
+            </div>
+            <label class="switch">
+              <input id="debugMode" type="checkbox">
+              <span></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="field">
+            <label for="prefetchWindowSize">
+              <span>Prefetch Window</span>
+              <span id="prefetchWindowSizeValue" class="value"></span>
+            </label>
+            <input id="prefetchWindowSize" type="range" min="300" max="3000" step="100">
+            <div class="hint">Controls how far below the viewport jobs become eligible for prefetch.</div>
+          </div>
+
+          <div class="field">
+            <label for="maxPrefetchConcurrency">
+              <span>Prefetch Concurrency</span>
+              <span id="maxPrefetchConcurrencyValue" class="value"></span>
+            </label>
+            <input id="maxPrefetchConcurrency" type="range" min="1" max="3" step="1">
+            <div class="hint">Higher values are faster, but raise the chance of LinkedIn rate limits.</div>
+          </div>
+
+          <div class="field">
+            <label for="cacheTTLHours">
+              <span>Cache TTL</span>
+              <span id="cacheTTLHoursValue" class="value"></span>
+            </label>
+            <input id="cacheTTLHours" type="range" min="1" max="168" step="1">
+            <div class="hint">How long known job status remains reusable before it expires.</div>
+          </div>
+        </section>
+      </div>
+
+      <div class="footer" id="statusText">Saved locally.</div>
+    </main>
+
+    <script src="../shared/settings.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

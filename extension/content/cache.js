@@ -1,6 +1,6 @@
 (function initContentCache(globalScope) {
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
-  const { cacheTtlMs, staleRefreshMs, errorRetryMs, rateLimitRetryMs } = RM.constants.timing;
+  const { staleRefreshMs, errorRetryMs, rateLimitRetryMs } = RM.constants.timing;
   const { error, rateLimited, reposted, notReposted } = RM.constants.status;
   const sourcePriority = RM.constants.sourcePriority;
 
@@ -19,6 +19,9 @@
     if (!record) {
       return 0;
     }
+
+    const settings = RM.settings.getSnapshot();
+    const cacheTtlMs = settings.cacheTTLHours * 60 * 60 * 1000;
 
     if (record.nextRetryAt) {
       return Math.max(record.nextRetryAt - record.timestamp, 0);
