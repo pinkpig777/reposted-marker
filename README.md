@@ -2,11 +2,12 @@
 
 Chrome/Edge extension for marking reposted LinkedIn job postings in the jobs list and detail panel.
 
-This repository currently implements **Milestone 3** from `spec.md`, which includes:
+This repository currently implements **Milestone 4** from `spec.md`, which includes:
 
 - Milestone 1: DOM-first detection and highlighting
 - Milestone 2: job ID mapping, card registry, and in-page cache reuse
 - Milestone 3: background prefetch queue with async updates back into the left job list
+- Milestone 4: viewport-aware prefetch windowing and bounded priority queueing
 
 ## Current Scope
 
@@ -22,6 +23,10 @@ Implemented now:
 - Pushes async status results back to the active LinkedIn tab
 - Throttles prefetch traffic to one request at a time with a minimum delay between requests
 - Honors `429 Too Many Requests` responses with a cached cooldown before retrying
+- Queues prefetch only for cards inside a configurable near-viewport window
+- Prioritizes cards closest to the viewport and caps pending queue size in the worker
+- Uses scroll-driven rescans to incrementally expand prefetch as the user moves through the list
+- Refreshes stale cached results opportunistically for nearby cards without blocking the UI
 - Highlights reposted items with a light red background and red border
 - Rescans dynamically loaded LinkedIn jobs content with a debounced `MutationObserver`
 - Handles SPA-style route changes on LinkedIn jobs pages
@@ -31,7 +36,6 @@ Not implemented yet:
 
 - Popup or options UI
 - Settings storage
-- Prefetch windowing and viewport prioritization
 - Advanced multi-state job markers
 
 ## Project Structure
@@ -76,11 +80,13 @@ extension/
 - It scans job-card anchors that match `/jobs/view/` and extracts their job IDs
 - Cards are registered by job ID so rerendered DOM can reuse existing results
 - Visible card text and detail-panel text are checked first
-- Cards still marked `unknown` are sent to the background prefetch queue
+- Cards still marked `unknown` are considered for prefetch only when they fall inside the near-viewport window
+- Older cached results are reused immediately and refreshed in the background only for nearby cards
 - The background worker fetches the LinkedIn job page, classifies reposted status, caches the result, and sends it back to the tab
+- The worker keeps a bounded, priority-sorted queue so cards nearest the viewport win when scrolling produces many candidates
 - If LinkedIn responds with `429`, the worker pauses follow-up prefetches and waits until the retry window expires
 - Matching left-side cards are updated asynchronously when results arrive
-- A debounced observer rescans after LinkedIn mutates the page
+- Debounced rescans run after DOM mutations, scroll, resize, and route changes
 
 ## Manual Verification
 
@@ -90,16 +96,16 @@ Use this build on a real LinkedIn jobs page and confirm:
 2. Opening a reposted job highlights the detail panel
 3. A left-side card without visible reposted text becomes highlighted a short time later if prefetch finds `Reposted`
 4. Scrolling to load more jobs triggers scanning and background queueing for new cards
-5. Repeated LinkedIn rerenders do not cause obvious flicker or duplicate queue churn
+5. Rapid scrolling does not trigger a flood of requests for far-off cards
+6. Repeated LinkedIn rerenders do not cause obvious flicker or duplicate queue churn
 
 ## Known Limits
 
 - Prefetch currently fetches the job page HTML directly and classifies it by text match, so LinkedIn markup changes can require selector or parser adjustment
-- Queueing is bounded and rate-limited, but still not viewport-aware yet
+- Viewport window sizes and queue limits are hardcoded today; milestone 5 can move them into settings
 - Failed prefetches back off before retrying, and `429` responses trigger a longer cooldown
 - No automated browser test harness is included yet
 
 ## Next Milestones
 
-- Milestone 4: viewport-aware prefetch windowing and performance tuning
 - Milestone 5: popup/options UI and configurable behavior
