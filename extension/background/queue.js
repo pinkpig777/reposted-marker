@@ -1,15 +1,43 @@
 (function initBackgroundQueue(globalScope) {
   const RM = (globalScope.RepostedMarkerBackground = globalScope.RepostedMarkerBackground || {});
+  const shared = globalScope.RepostedMarker;
+  const { messageType } = shared.constants;
 
-  const minIntervalMs = 2000;
-  const maxPendingTasks = 24;
   const pendingTasks = [];
   const pendingByJobId = new Map();
   const activeByJobId = new Map();
+
   let activeCount = 0;
   let queuePausedUntil = 0;
+  let queuePauseReason = null;
   let lastRequestAt = 0;
   let resumeTimerId = null;
+  let scheduleQueued = false;
+
+  function getSettings() {
+    return shared.settings.getSnapshot();
+  }
+
+  function getMinIntervalMs() {
+    const settings = getSettings();
+    return Math.max(Number(settings.prefetchMinIntervalMs) || shared.constants.prefetch.minIntervalMs, 200);
+  }
+
+  function getMaxPendingTasks() {
+    const settings = getSettings();
+    return Math.max(Number(settings.queueMaxPendingTasks) || 24, 1);
+  }
+
+  function getMaxConcurrency() {
+    const settings = getSettings();
+    return Math.max(Number(settings.maxPrefetchConcurrency) || 1, 1);
+  }
+
+  function assertInvariants() {
+    if (activeCount !== activeByJobId.size) {
+      activeCount = activeByJobId.size;
+    }
+  }
 
   function mergeTabId(task, tabId) {
     if (Number.isInteger(tabId)) {
@@ -17,23 +45,38 @@
     }
   }
 
+  function notifyTab(tabId, message, eventName, details) {
+    chrome.tabs.sendMessage(tabId, message).catch((error) => {
+      shared.debugLog.log("prefetch_broadcast_failed", {
+        error: error && error.message ? error.message : "unknown_error",
+        eventName,
+        tabId,
+        ...(details || {})
+      });
+    });
+  }
+
   function broadcastResult(task, record) {
     for (const tabId of task.tabIds) {
-      chrome.tabs.sendMessage(tabId, {
-        type: "JOB_STATUS_RESULT",
+      notifyTab(tabId, {
+        type: messageType.jobStatusResult,
         payload: record
-      }).catch(() => {});
+      }, "JOB_STATUS_RESULT", {
+        jobId: task.jobId
+      });
     }
   }
 
   function broadcastRelease(task) {
     for (const tabId of task.tabIds) {
-      chrome.tabs.sendMessage(tabId, {
-        type: "JOB_PREFETCH_RELEASED",
+      notifyTab(tabId, {
+        type: messageType.jobPrefetchReleased,
         payload: {
           jobId: task.jobId
         }
-      }).catch(() => {});
+      }, "JOB_PREFETCH_RELEASED", {
+        jobId: task.jobId
+      });
     }
   }
 
@@ -50,11 +93,11 @@
   }
 
   function trimPendingTasks() {
-    while (pendingTasks.length > maxPendingTasks) {
+    while (pendingTasks.length > getMaxPendingTasks()) {
       const droppedTask = pendingTasks.pop();
       if (droppedTask) {
         pendingByJobId.delete(droppedTask.jobId);
-        globalScope.RepostedMarker.debugLog.log("prefetch_dropped", {
+        shared.debugLog.log("prefetch_dropped", {
           jobId: droppedTask.jobId,
           reason: "queue_trim"
         });
@@ -63,54 +106,98 @@
     }
   }
 
-  function releasePendingTasks() {
+  function releasePendingTasks(reason) {
     while (pendingTasks.length > 0) {
       const pendingTask = pendingTasks.pop();
       pendingByJobId.delete(pendingTask.jobId);
-      globalScope.RepostedMarker.debugLog.log("prefetch_released", {
+      shared.debugLog.log("prefetch_released", {
         jobId: pendingTask.jobId,
-        reason: "settings_disabled"
+        reason: reason || "settings_disabled"
       });
       broadcastRelease(pendingTask);
     }
   }
 
+  function queueIsPaused() {
+    return queuePausedUntil > Date.now();
+  }
+
+  function clearPauseIfExpired() {
+    if (queuePausedUntil <= Date.now()) {
+      queuePausedUntil = 0;
+      queuePauseReason = null;
+    }
+  }
+
+  function pauseQueue(untilMs, reason, task) {
+    queuePausedUntil = Math.max(queuePausedUntil, untilMs || 0);
+    queuePauseReason = reason || "rate_limited";
+    shared.debugLog.log("prefetch_queue_paused", {
+      jobId: task ? task.jobId : null,
+      pausedUntil: queuePausedUntil,
+      reason: queuePauseReason
+    });
+    scheduleResume();
+  }
+
+  function requeueTask(task, reason) {
+    if (!task || pendingByJobId.has(task.jobId) || activeByJobId.has(task.jobId)) {
+      return;
+    }
+
+    task.enqueuedAt = Date.now();
+    pendingByJobId.set(task.jobId, task);
+    pendingTasks.push(task);
+    sortPendingTasks();
+    trimPendingTasks();
+
+    shared.debugLog.log("prefetch_requeued", {
+      jobId: task.jobId,
+      reason: reason || "retry_pending"
+    });
+  }
+
   async function processTask(task) {
-    const settings = globalScope.RepostedMarker.settings.getSnapshot();
+    const settings = getSettings();
     if (!settings.enabled || !settings.prefetchEnabled) {
-      globalScope.RepostedMarker.debugLog.log("prefetch_skipped", {
+      shared.debugLog.log("prefetch_skipped", {
         jobId: task.jobId,
         reason: "settings_disabled"
       });
       broadcastRelease(task);
-      return;
+      return { action: "released" };
+    }
+
+    if (queueIsPaused()) {
+      return {
+        action: "requeue",
+        reason: "queue_paused"
+      };
     }
 
     let cachedRecord = null;
-
     if (!task.forceRefresh) {
       cachedRecord = await RM.cache.get(task.jobId);
       if (cachedRecord) {
-        globalScope.RepostedMarker.debugLog.log("prefetch_cache_hit", {
+        shared.debugLog.log("prefetch_cache_hit", {
           jobId: task.jobId,
           forceRefresh: false
         });
         broadcastResult(task, cachedRecord);
-        return;
+        return { action: "completed" };
       }
     }
 
-    if (queuePausedUntil > Date.now()) {
-      return;
-    }
-
-    const waitMs = Math.max((lastRequestAt + minIntervalMs) - Date.now(), 0);
+    const waitMs = Math.max((lastRequestAt + getMinIntervalMs()) - Date.now(), 0);
     if (waitMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, waitMs));
     }
 
-    if (queuePausedUntil > Date.now()) {
-      return;
+    if (queueIsPaused()) {
+      return {
+        action: "requeue",
+        reason: "queue_paused"
+      };
     }
 
     lastRequestAt = Date.now();
@@ -118,73 +205,132 @@
     const storedRecord = await RM.cache.set(fetchedRecord);
 
     if (storedRecord && storedRecord.status === "rate_limited") {
-      queuePausedUntil = Math.max(queuePausedUntil, storedRecord.nextRetryAt || 0);
-      globalScope.RepostedMarker.debugLog.log("prefetch_queue_paused", {
-        jobId: task.jobId,
-        pausedUntil: queuePausedUntil
-      });
+      pauseQueue(storedRecord.nextRetryAt || 0, "rate_limited", task);
     }
 
     if (storedRecord) {
       broadcastResult(task, storedRecord);
-      return;
+      return { action: "completed" };
     }
 
     if (cachedRecord) {
       broadcastResult(task, cachedRecord);
-      return;
+      return { action: "completed" };
     }
 
     broadcastRelease(task);
+    return { action: "released" };
   }
 
   function scheduleResume() {
-    if (resumeTimerId || queuePausedUntil <= Date.now()) {
+    clearPauseIfExpired();
+    if (resumeTimerId || !queueIsPaused()) {
       return;
     }
 
     resumeTimerId = setTimeout(() => {
       resumeTimerId = null;
-      schedule();
+      requestSchedule();
     }, Math.max(queuePausedUntil - Date.now(), 0));
   }
 
-  function schedule() {
-    const settings = globalScope.RepostedMarker.settings.getSnapshot();
-    const maxConcurrency = settings.maxPrefetchConcurrency;
+  async function runTask(task) {
+    let outcome = null;
+    try {
+      outcome = await processTask(task);
+    } catch (error) {
+      shared.debugLog.log("prefetch_task_failed", {
+        jobId: task.jobId,
+        message: error && error.message ? error.message : "unknown_error"
+      });
+      outcome = {
+        action: "released"
+      };
+      broadcastRelease(task);
+    } finally {
+      activeByJobId.delete(task.jobId);
+      activeCount -= 1;
+      assertInvariants();
+
+      if (outcome && outcome.action === "requeue") {
+        requeueTask(task, outcome.reason);
+      }
+
+      requestSchedule();
+    }
+  }
+
+  function scheduleNow() {
+    scheduleQueued = false;
+    const settings = getSettings();
 
     if (!settings.enabled || !settings.prefetchEnabled) {
-      releasePendingTasks();
+      releasePendingTasks("settings_disabled");
       return;
     }
 
-    if (queuePausedUntil > Date.now()) {
+    clearPauseIfExpired();
+    if (queueIsPaused()) {
       scheduleResume();
       return;
     }
 
-    while (activeCount < maxConcurrency && pendingTasks.length > 0) {
+    while (activeCount < getMaxConcurrency() && pendingTasks.length > 0) {
       const task = pendingTasks.shift();
+      if (!task) {
+        break;
+      }
+
       pendingByJobId.delete(task.jobId);
+      if (activeByJobId.has(task.jobId)) {
+        continue;
+      }
+
       activeByJobId.set(task.jobId, task);
       activeCount += 1;
+      assertInvariants();
 
-      processTask(task)
-        .catch(() => {})
-        .finally(() => {
-          activeByJobId.delete(task.jobId);
-          activeCount -= 1;
-          schedule();
-        });
+      runTask(task);
     }
   }
 
+  function requestSchedule() {
+    if (scheduleQueued) {
+      return;
+    }
+
+    scheduleQueued = true;
+    Promise.resolve().then(scheduleNow);
+  }
+
+  function getStatus() {
+    clearPauseIfExpired();
+    return {
+      active: activeCount,
+      pauseReason: queuePauseReason,
+      paused: queueIsPaused(),
+      pausedUntil: queueIsPaused() ? queuePausedUntil : null,
+      pending: pendingTasks.length
+    };
+  }
+
+  function clearPending(reason) {
+    releasePendingTasks(reason || "manual_clear");
+  }
+
   function enqueue(task, tabId) {
-    const settings = globalScope.RepostedMarker.settings.getSnapshot();
+    const settings = getSettings();
     if (!settings.enabled || !settings.prefetchEnabled) {
-      globalScope.RepostedMarker.debugLog.log("prefetch_enqueue_ignored", {
+      shared.debugLog.log("prefetch_enqueue_ignored", {
         jobId: task.jobId,
         reason: "settings_disabled"
+      });
+      return;
+    }
+
+    if (!task || !task.jobId || !task.url) {
+      shared.debugLog.log("prefetch_enqueue_ignored", {
+        reason: "task_invalid"
       });
       return;
     }
@@ -218,7 +364,7 @@
     mergeTabId(nextTask, tabId);
     pendingByJobId.set(nextTask.jobId, nextTask);
     pendingTasks.push(nextTask);
-    globalScope.RepostedMarker.debugLog.log("prefetch_enqueued", {
+    shared.debugLog.log("prefetch_enqueued", {
       jobId: nextTask.jobId,
       priority: nextTask.priority,
       forceRefresh: nextTask.forceRefresh,
@@ -226,10 +372,12 @@
     });
     sortPendingTasks();
     trimPendingTasks();
-    schedule();
+    requestSchedule();
   }
 
   RM.queue = {
-    enqueue
+    clearPending,
+    enqueue,
+    getStatus
   };
 })(self);

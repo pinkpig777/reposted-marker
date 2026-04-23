@@ -1,14 +1,6 @@
 (function initBackgroundFetcher(globalScope) {
   const RM = (globalScope.RepostedMarkerBackground = globalScope.RepostedMarkerBackground || {});
-  const requestTimeoutMs = 15000;
-
-  function normalizeText(text) {
-    return String(text || "")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-  }
+  const shared = globalScope.RepostedMarker;
 
   function parseRetryAfterMillis(headerValue) {
     if (!headerValue) {
@@ -28,14 +20,38 @@
     return null;
   }
 
+  function getRetryMs(status) {
+    const settings = shared.settings.getSnapshot();
+    if (status === "rate_limited") {
+      return settings.rateLimitRetryMinutes * 60 * 1000;
+    }
+
+    return settings.errorRetryMinutes * 60 * 1000;
+  }
+
   async function fetchJobStatus(task) {
+    const validation = shared.contracts.validatePrefetchPayload(task);
+    if (!validation.ok) {
+      return {
+        jobId: task && task.jobId ? String(task.jobId) : "",
+        nextRetryAt: Date.now() + getRetryMs("error"),
+        source: "prefetch",
+        status: "error",
+        timestamp: Date.now(),
+        url: task && task.url ? String(task.url) : null
+      };
+    }
+
+    const normalizedTask = validation.value;
+    const settings = shared.settings.getSnapshot();
+    const requestTimeoutMs = settings.fetchTimeoutMs;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
     }, requestTimeoutMs);
 
     try {
-      const response = await fetch(task.url, {
+      const response = await fetch(normalizedTask.url, {
         credentials: "include",
         signal: controller.signal
       });
@@ -43,14 +59,14 @@
       clearTimeout(timeoutId);
 
       if (response.status === 429) {
-        const retryAfterMs = parseRetryAfterMillis(response.headers.get("retry-after")) || (60 * 60 * 1000);
-        globalScope.RepostedMarker.debugLog.log("prefetch_rate_limited", {
-          jobId: task.jobId,
+        const retryAfterMs = parseRetryAfterMillis(response.headers.get("retry-after")) || getRetryMs("rate_limited");
+        shared.debugLog.log("prefetch_rate_limited", {
+          jobId: normalizedTask.jobId,
           retryAfterMs
         });
         return {
-          jobId: task.jobId,
-          url: task.url,
+          jobId: normalizedTask.jobId,
+          url: normalizedTask.url,
           status: "rate_limited",
           source: "prefetch",
           timestamp: Date.now(),
@@ -59,47 +75,47 @@
       }
 
       if (!response.ok) {
-        globalScope.RepostedMarker.debugLog.log("prefetch_http_error", {
-          jobId: task.jobId,
+        shared.debugLog.log("prefetch_http_error", {
+          jobId: normalizedTask.jobId,
           statusCode: response.status
         });
         return {
-          jobId: task.jobId,
-          url: task.url,
+          jobId: normalizedTask.jobId,
+          url: normalizedTask.url,
           status: "error",
           source: "prefetch",
           timestamp: Date.now(),
-          nextRetryAt: Date.now() + (30 * 60 * 1000)
+          nextRetryAt: Date.now() + getRetryMs("error")
         };
       }
 
       const html = await response.text();
-      const normalized = normalizeText(html);
+      const normalized = shared.utils.normalizeText(html, { stripHtml: true });
       const detectedStatus = /\breposted\b/i.test(normalized) ? "reposted" : "not_reposted";
-      globalScope.RepostedMarker.debugLog.log("prefetch_completed", {
-        jobId: task.jobId,
+      shared.debugLog.log("prefetch_completed", {
+        jobId: normalizedTask.jobId,
         status: detectedStatus
       });
 
       return {
-        jobId: task.jobId,
-        url: task.url,
+        jobId: normalizedTask.jobId,
+        url: normalizedTask.url,
         status: detectedStatus,
         source: "prefetch",
         timestamp: Date.now()
       };
     } catch (_error) {
       clearTimeout(timeoutId);
-      globalScope.RepostedMarker.debugLog.log("prefetch_exception", {
-        jobId: task.jobId
+      shared.debugLog.log("prefetch_exception", {
+        jobId: normalizedTask.jobId
       });
       return {
-        jobId: task.jobId,
-        url: task.url,
+        jobId: normalizedTask.jobId,
+        url: normalizedTask.url,
         status: "error",
         source: "prefetch",
         timestamp: Date.now(),
-        nextRetryAt: Date.now() + (30 * 60 * 1000)
+        nextRetryAt: Date.now() + getRetryMs("error")
       };
     }
   }

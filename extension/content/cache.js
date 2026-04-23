@@ -1,41 +1,12 @@
 (function initContentCache(globalScope) {
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
-  const { staleRefreshMs, errorRetryMs, rateLimitRetryMs } = RM.constants.timing;
-  const { error, rateLimited, reposted, notReposted } = RM.constants.status;
+  const { reposted, notReposted } = RM.constants.status;
   const sourcePriority = RM.constants.sourcePriority;
 
   const cache = new Map();
 
   function isFresh(record) {
-    if (!record) {
-      return false;
-    }
-
-    const ttlMs = getTtlMs(record);
-    return Date.now() - record.timestamp < ttlMs;
-  }
-
-  function getTtlMs(record) {
-    if (!record) {
-      return 0;
-    }
-
-    const settings = RM.settings.getSnapshot();
-    const cacheTtlMs = settings.cacheTTLHours * 60 * 60 * 1000;
-
-    if (record.nextRetryAt) {
-      return Math.max(record.nextRetryAt - record.timestamp, 0);
-    }
-
-    if (record.status === rateLimited) {
-      return rateLimitRetryMs;
-    }
-
-    if (record.status === error) {
-      return errorRetryMs;
-    }
-
-    return cacheTtlMs;
+    return RM.cachePolicy.isFresh(record, RM.settings.getSnapshot(), RM.constants);
   }
 
   function get(jobId) {
@@ -53,7 +24,6 @@
       return null;
     }
 
-    const existingRecord = get(record.jobId);
     const nextRecord = {
       jobId: record.jobId,
       status: record.status,
@@ -62,14 +32,10 @@
       url: record.url || null,
       nextRetryAt: record.nextRetryAt || null
     };
+    const existingRecord = get(nextRecord.jobId);
 
-    if (existingRecord) {
-      const existingPriority = sourcePriority[existingRecord.source] || 0;
-      const nextPriority = sourcePriority[nextRecord.source] || 0;
-
-      if (existingPriority > nextPriority) {
-        return existingRecord;
-      }
+    if (!RM.cachePolicy.shouldReplaceRecord(existingRecord, nextRecord, sourcePriority)) {
+      return existingRecord;
     }
 
     cache.set(record.jobId, nextRecord);
@@ -85,7 +51,7 @@
       return false;
     }
 
-    return Date.now() - record.timestamp >= staleRefreshMs;
+    return RM.cachePolicy.shouldRefresh(record, RM.constants);
   }
 
   RM.cache = {
