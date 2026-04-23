@@ -77,4 +77,4 @@ If the current page is not supported, scanning and highlighting are intentionall
 ## More Docs
 
 - Architecture and technical details: [Architecture.md](Architecture.md)
-- Refactor summary: [refactor_results.md](refactor_results.md)
+
