@@ -2,7 +2,7 @@
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
   const { attributes, classes } = RM.constants;
 
-  function setStatus(element, status, isDetail) {
+  function setStatus(element, status, isDetail, source) {
     if (!element) {
       return;
     }
@@ -11,6 +11,9 @@
     const attributeName = isDetail ? attributes.detailStatus : attributes.status;
 
     element.setAttribute(attributeName, status);
+    if (source) {
+      element.setAttribute(attributes.source, source);
+    }
 
     if (status === "reposted") {
       element.classList.add(className);

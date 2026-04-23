@@ -2,10 +2,28 @@
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
 
   RM.constants = {
+    status: {
+      reposted: "reposted",
+      notReposted: "not_reposted",
+      unknown: "unknown",
+      loading: "loading",
+      error: "error"
+    },
+    source: {
+      cardDom: "card_dom",
+      detailDom: "detail_dom",
+      prefetch: "prefetch"
+    },
+    messageType: {
+      prefetchJob: "PREFETCH_JOB",
+      jobStatusResult: "JOB_STATUS_RESULT"
+    },
     attributes: {
       status: "data-rm-status",
       scanned: "data-rm-scanned",
-      detailStatus: "data-rm-detail-status"
+      detailStatus: "data-rm-detail-status",
+      jobId: "data-rm-job-id",
+      source: "data-rm-source"
     },
     classes: {
       reposted: "rm-reposted",
@@ -24,7 +42,11 @@
     },
     timing: {
       scanDebounceMs: 150,
-      routePollMs: 500
+      routePollMs: 500,
+      cacheTtlMs: 24 * 60 * 60 * 1000
+    },
+    prefetch: {
+      maxConcurrency: 3
     }
   };
 })(window);

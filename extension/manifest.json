@@ -15,6 +15,9 @@
       "js": [
         "shared/constants.js",
         "shared/utils.js",
+        "content/job-id.js",
+        "content/cache.js",
+        "content/card-registry.js",
         "content/detector.js",
         "content/styler.js",
         "content/scanner.js",

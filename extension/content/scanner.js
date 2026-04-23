@@ -1,8 +1,11 @@
 (function initScanner(globalScope) {
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
-  const { attributes, selectors } = RM.constants;
+  const { attributes, selectors, source, status } = RM.constants;
   const { detectRepostedFromElement, extractVisibleText } = RM.detector;
+  const { getJobDataFromAnchor, extractJobIdFromUrl } = RM.jobId;
   const { setStatus } = RM.styler;
+  const { registerCard, getCards } = RM.cardRegistry;
+  const cache = RM.cache;
 
   function isElementVisible(element) {
     if (!element || !(element instanceof HTMLElement)) {
@@ -79,21 +82,68 @@
     return null;
   }
 
+  function getCurrentDetailJobId() {
+    return extractJobIdFromUrl(window.location.href);
+  }
+
+  function applyRecordToCard(card, record) {
+    if (!card || !record) {
+      return;
+    }
+
+    setStatus(card, record.status, false, record.source);
+  }
+
+  function applyRecordToRegisteredCards(record) {
+    if (!record || !record.jobId) {
+      return;
+    }
+
+    const cards = getCards(record.jobId);
+    for (const card of cards) {
+      applyRecordToCard(card, record);
+    }
+  }
+
+  function rememberRecord(record) {
+    cache.set(record);
+    applyRecordToRegisteredCards(record);
+  }
+
   function scanJobCards() {
     const anchors = Array.from(document.querySelectorAll(selectors.jobAnchors));
     const visitedCards = new Set();
 
     for (const anchor of anchors) {
+      const jobData = getJobDataFromAnchor(anchor);
       const card = findJobCardContainer(anchor);
-      if (!card || visitedCards.has(card)) {
+      if (!card || !jobData || visitedCards.has(card)) {
         continue;
       }
 
       visitedCards.add(card);
       card.setAttribute(attributes.scanned, "true");
+      card.setAttribute(attributes.jobId, jobData.jobId);
+      registerCard(jobData.jobId, card);
 
-      const status = detectRepostedFromElement(card) ? "reposted" : "unknown";
-      setStatus(card, status, false);
+      const cachedRecord = cache.get(jobData.jobId);
+      if (cachedRecord) {
+        applyRecordToCard(card, cachedRecord);
+        continue;
+      }
+
+      if (detectRepostedFromElement(card)) {
+        rememberRecord({
+          jobId: jobData.jobId,
+          url: jobData.url,
+          status: status.reposted,
+          source: source.cardDom,
+          timestamp: Date.now()
+        });
+        continue;
+      }
+
+      setStatus(card, status.unknown, false, source.cardDom);
     }
   }
 
@@ -103,8 +153,24 @@
       return;
     }
 
-    const status = detectRepostedFromElement(detailPanel) ? "reposted" : "unknown";
-    setStatus(detailPanel, status, true);
+    const jobId = getCurrentDetailJobId();
+    const detailStatus = detectRepostedFromElement(detailPanel)
+      ? status.reposted
+      : status.notReposted;
+
+    setStatus(detailPanel, detailStatus, true, source.detailDom);
+
+    if (!jobId) {
+      return;
+    }
+
+    rememberRecord({
+      jobId,
+      url: window.location.href,
+      status: detailStatus,
+      source: source.detailDom,
+      timestamp: Date.now()
+    });
   }
 
   function scanPage() {
@@ -113,8 +179,11 @@
   }
 
   RM.scanner = {
+    applyRecordToRegisteredCards,
     findDetailPanel,
     findJobCardContainer,
+    getCurrentDetailJobId,
+    rememberRecord,
     scanPage
   };
 })(window);
