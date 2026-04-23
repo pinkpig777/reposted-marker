@@ -37,7 +37,7 @@
       detailReposted: "rm-detail-reposted"
     },
     selectors: {
-      jobAnchors: 'a[href*="/jobs/view/"]',
+      jobAnchors: 'a[href*="/jobs/view/"], a[href*="currentJobId="]',
       mainRegion: "main",
       detailCandidates: [
         ".jobs-search__job-details--container",
