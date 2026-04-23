@@ -2,6 +2,9 @@
 
 LinkedIn Reposted Marker is a Chrome and Edge extension that helps you spot reposted LinkedIn job listings at a glance, before you waste time opening the wrong role.
 
+
+![Demo Screenshot](Img/demo.jpg)
+
 ## Why It Exists ✨
 
 LinkedIn Jobs often hides the most useful signal until after you click into a posting. This extension brings that signal forward by checking job cards, checking the open detail panel, and filling in the gaps with background prefetch.
