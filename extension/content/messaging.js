@@ -27,11 +27,18 @@
 
   function startMessageListener() {
     chrome.runtime.onMessage.addListener((message) => {
-      if (!message || message.type !== messageType.jobStatusResult) {
+      if (!message) {
         return;
       }
 
-      handleJobStatusResult(message.payload);
+      if (message.type === messageType.jobStatusResult) {
+        handleJobStatusResult(message.payload);
+        return;
+      }
+
+      if (message.type === messageType.jobPrefetchReleased && message.payload && message.payload.jobId) {
+        setPrefetchQueuedForJob(message.payload.jobId, false);
+      }
     });
   }
 

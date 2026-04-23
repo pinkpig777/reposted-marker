@@ -3,6 +3,7 @@
 
   const maxConcurrency = 1;
   const minIntervalMs = 4000;
+  const maxPendingTasks = 24;
   const pendingTasks = [];
   const pendingByJobId = new Map();
   const activeByJobId = new Map();
@@ -26,16 +27,61 @@
     }
   }
 
+  function broadcastRelease(task) {
+    for (const tabId of task.tabIds) {
+      chrome.tabs.sendMessage(tabId, {
+        type: "JOB_PREFETCH_RELEASED",
+        payload: {
+          jobId: task.jobId
+        }
+      }).catch(() => {});
+    }
+  }
+
+  function compareTasks(left, right) {
+    if (left.priority !== right.priority) {
+      return left.priority - right.priority;
+    }
+
+    return left.enqueuedAt - right.enqueuedAt;
+  }
+
+  function sortPendingTasks() {
+    pendingTasks.sort(compareTasks);
+  }
+
+  function trimPendingTasks() {
+    while (pendingTasks.length > maxPendingTasks) {
+      const droppedTask = pendingTasks.pop();
+      if (droppedTask) {
+        pendingByJobId.delete(droppedTask.jobId);
+        broadcastRelease(droppedTask);
+      }
+    }
+  }
+
   async function processTask(task) {
-    const cachedRecord = await RM.cache.get(task.jobId);
-    if (cachedRecord) {
-      broadcastResult(task, cachedRecord);
+    let cachedRecord = null;
+
+    if (!task.forceRefresh) {
+      cachedRecord = await RM.cache.get(task.jobId);
+      if (cachedRecord) {
+        broadcastResult(task, cachedRecord);
+        return;
+      }
+    }
+
+    if (queuePausedUntil > Date.now()) {
       return;
     }
 
     const waitMs = Math.max((lastRequestAt + minIntervalMs) - Date.now(), 0);
     if (waitMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+
+    if (queuePausedUntil > Date.now()) {
+      return;
     }
 
     lastRequestAt = Date.now();
@@ -46,7 +92,17 @@
       queuePausedUntil = Math.max(queuePausedUntil, storedRecord.nextRetryAt || 0);
     }
 
-    broadcastResult(task, storedRecord);
+    if (storedRecord) {
+      broadcastResult(task, storedRecord);
+      return;
+    }
+
+    if (cachedRecord) {
+      broadcastResult(task, cachedRecord);
+      return;
+    }
+
+    broadcastRelease(task);
   }
 
   function scheduleResume() {
@@ -86,17 +142,25 @@
     const existingTask = pendingByJobId.get(task.jobId);
     if (existingTask) {
       mergeTabId(existingTask, tabId);
+      existingTask.priority = Math.min(existingTask.priority, task.priority || 0);
+      existingTask.forceRefresh = existingTask.forceRefresh || Boolean(task.forceRefresh);
+      sortPendingTasks();
       return;
     }
 
     const activeTask = activeByJobId.get(task.jobId);
     if (activeTask) {
       mergeTabId(activeTask, tabId);
+      activeTask.priority = Math.min(activeTask.priority, task.priority || 0);
+      activeTask.forceRefresh = activeTask.forceRefresh || Boolean(task.forceRefresh);
       return;
     }
 
     const nextTask = {
+      enqueuedAt: Date.now(),
+      forceRefresh: Boolean(task.forceRefresh),
       jobId: task.jobId,
+      priority: task.priority || 0,
       url: task.url,
       tabIds: new Set()
     };
@@ -104,6 +168,8 @@
     mergeTabId(nextTask, tabId);
     pendingByJobId.set(nextTask.jobId, nextTask);
     pendingTasks.push(nextTask);
+    sortPendingTasks();
+    trimPendingTasks();
     schedule();
   }
 
