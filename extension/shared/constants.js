@@ -33,11 +33,13 @@
       scanned: "data-rm-scanned",
       detailStatus: "data-rm-detail-status",
       jobId: "data-rm-job-id",
-      source: "data-rm-source"
+      source: "data-rm-source",
+      badge: "data-rm-badge"
     },
     classes: {
       reposted: "rm-reposted",
-      detailReposted: "rm-detail-reposted"
+      detailReposted: "rm-detail-reposted",
+      repostedBadge: "rm-reposted-badge"
     },
     selectors: {
       jobAnchors: 'a[href*="/jobs/view/"], a[href*="currentJobId="]',
