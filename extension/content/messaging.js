@@ -1,39 +1,37 @@
 (function initMessaging(globalScope) {
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
   const { messageType } = RM.constants;
-  const { clearStatus, setStatus } = RM.styler;
-  const { findDetailPanel, getCurrentDetailJobId, rememberRecord } = RM.scanner;
   const { setPrefetchQueuedForJob } = RM.cardRegistry;
+  let lastManualRescanAt = 0;
+  const rescanCooldownMs = 1000;
 
   function handleJobStatusResult(payload) {
-    if (!payload || !payload.jobId) {
+    const validation = RM.contracts.validateJobStatusPayload(payload);
+    if (!validation.ok) {
       return;
     }
+
+    const recordPayload = validation.value;
 
     RM.debugLog.log("job_status_result_received", {
-      jobId: payload.jobId,
-      status: payload.status,
-      source: payload.source
+      jobId: recordPayload.jobId,
+      status: recordPayload.status,
+      source: recordPayload.source
     });
-    setPrefetchQueuedForJob(payload.jobId, false);
-    const record = rememberRecord(payload);
-    const settings = RM.settings.getSnapshot();
+    setPrefetchQueuedForJob(recordPayload.jobId, false);
+    RM.scanner.applyBackgroundResult(recordPayload);
+  }
 
-    if (!settings.enabled || !record || record.jobId !== getCurrentDetailJobId()) {
+  function handleRescanRequest() {
+    if (Date.now() - lastManualRescanAt < rescanCooldownMs) {
       return;
     }
 
-    const detailPanel = findDetailPanel();
-    if (!detailPanel) {
-      return;
-    }
-
-    if (settings.markDetailPanel) {
-      setStatus(detailPanel, record.status, true, record.source);
-      return;
-    }
-
-    clearStatus(detailPanel, true);
+    lastManualRescanAt = Date.now();
+    RM.scanner.scanPage();
+    RM.debugLog.log("manual_rescan_triggered", {
+      path: window.location.pathname
+    });
   }
 
   function startMessageListener() {
@@ -52,6 +50,11 @@
           jobId: message.payload.jobId
         });
         setPrefetchQueuedForJob(message.payload.jobId, false);
+        return;
+      }
+
+      if (message.type === messageType.rescanPage) {
+        handleRescanRequest();
       }
     });
   }

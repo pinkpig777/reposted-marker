@@ -150,6 +150,7 @@
 
       .actions {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
         margin-top: 12px;
       }
@@ -169,6 +170,16 @@
         border-color: #d24c3f;
         background: #fff0ed;
         color: var(--accent);
+      }
+
+      button.secondary {
+        border-color: #e4c9c4;
+        background: #fff;
+      }
+
+      .status-value {
+        color: var(--text);
+        font-weight: 600;
       }
     </style>
   </head>
@@ -236,6 +247,32 @@
         </section>
 
         <section class="card">
+          <div class="row">
+            <div>
+              <div class="label">Page Support</div>
+              <div class="hint">Only LinkedIn Jobs search route is currently supported.</div>
+            </div>
+            <div id="pageSupportText" class="status-value">Checking…</div>
+          </div>
+
+          <div class="row">
+            <div>
+              <div class="label">Queue Status</div>
+              <div class="hint">Live status from background prefetch queue.</div>
+            </div>
+            <div id="queueStatusText" class="status-value">-</div>
+          </div>
+
+          <div class="row">
+            <div>
+              <div class="label">Cache Status</div>
+              <div class="hint">Background cache entries and hit metrics.</div>
+            </div>
+            <div id="cacheStatusText" class="status-value">-</div>
+          </div>
+        </section>
+
+        <section class="card">
           <div class="field">
             <label for="prefetchWindowSize">
               <span>Prefetch Window</span>
@@ -266,6 +303,8 @@
       </div>
 
       <div class="actions">
+        <button id="rescanPage" class="secondary" type="button">Rescan Page</button>
+        <button id="clearCache" class="secondary" type="button">Clear Cache</button>
         <button id="downloadLogs" class="primary" type="button">Download Debug Log</button>
         <button id="clearLogs" type="button">Clear Log</button>
       </div>
@@ -273,6 +312,8 @@
       <div class="footer" id="statusText">Saved locally.</div>
     </main>
 
+    <script src="../shared/constants.js"></script>
+    <script src="../shared/contracts.js"></script>
     <script src="../shared/settings.js"></script>
     <script src="../shared/debug-log.js"></script>
     <script src="popup.js"></script>

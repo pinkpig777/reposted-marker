@@ -305,6 +305,41 @@
     return storedRecord;
   }
 
+  function applyRecordToCurrentDetail(record) {
+    const settings = RM.settings.getSnapshot();
+    if (!settings.enabled || !record || record.jobId !== getCurrentDetailJobId()) {
+      return;
+    }
+
+    const detailPanel = findDetailPanel();
+    if (!detailPanel) {
+      return;
+    }
+
+    const detailTarget = findDetailHeader(detailPanel) || detailPanel;
+    if (settings.markDetailPanel) {
+      setStatus(detailTarget, record.status, true, record.source);
+      return;
+    }
+
+    clearStatus(detailTarget, true);
+  }
+
+  function applyBackgroundResult(payload) {
+    const validator = RM.contracts && RM.contracts.validateJobStatusPayload;
+    const validation = validator
+      ? validator(payload)
+      : { ok: Boolean(payload && payload.jobId), value: payload };
+
+    if (!validation.ok) {
+      return null;
+    }
+
+    const record = rememberRecord(validation.value);
+    applyRecordToCurrentDetail(record);
+    return record;
+  }
+
   function scanJobCards() {
     const settings = RM.settings.getSnapshot();
     const anchors = Array.from(document.querySelectorAll(selectors.jobAnchors));
@@ -421,6 +456,7 @@
   }
 
   RM.scanner = {
+    applyBackgroundResult,
     applyRecordToRegisteredCards,
     clearPageMarks,
     findDetailPanel,
