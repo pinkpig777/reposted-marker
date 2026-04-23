@@ -1,48 +1,74 @@
 # LinkedIn Reposted Marker
 
-Chrome/Edge extension for marking reposted LinkedIn job postings in the jobs list and detail panel.
+LinkedIn Reposted Marker is a Chrome and Edge extension that detects reposted LinkedIn job listings and highlights them in the jobs list and detail panel.
 
-This repository currently implements **Milestone 4** from `spec.md`, plus a popup control menu for runtime settings.
+## Overview
+
+The extension is designed for LinkedIn Jobs pages that behave like a dynamic single-page application. It handles:
+
+- visible DOM detection for reposted jobs
+- background prefetch for unresolved jobs
+- job ID mapping and cache reuse across rerenders
+- viewport-aware prefetch windowing and bounded queueing
+- popup controls for runtime behavior and local settings
+
+Current implementation status:
 
 - Milestone 1: DOM-first detection and highlighting
 - Milestone 2: job ID mapping, card registry, and in-page cache reuse
-- Milestone 3: background prefetch queue with async updates back into the left job list
-- Milestone 4: viewport-aware prefetch windowing and bounded priority queueing
-- Control menu: popup settings for runtime behavior and persisted local preferences
+- Milestone 3: background prefetch queue with async updates
+- Milestone 4: viewport-aware prefetch windowing and queue prioritization
+- Control menu: popup settings and debug log export
 
-## Current Scope
+## Features
 
-Implemented now:
-
-- Detects `Reposted` text from visible job cards in the left-side jobs list
-- Detects `Reposted` text from the visible job detail panel
+- Highlights reposted jobs in the left-side jobs list
+- Highlights reposted jobs in the right-side detail panel
 - Extracts LinkedIn job IDs from `/jobs/view/<id>/` URLs
-- Maps multiple rendered cards back to the same job ID
-- Reuses known job status across rerenders with an in-page cache
-- Prefetches unresolved jobs in a background service worker
-- Persists prefetched job status in `chrome.storage.local`
-- Pushes async status results back to the active LinkedIn tab
-- Throttles prefetch traffic to one request at a time with a minimum delay between requests
-- Honors `429 Too Many Requests` responses with a cached cooldown before retrying
-- Queues prefetch only for cards inside a near-viewport window
-- Prioritizes cards closest to the viewport and bounds the worker queue
-- Refreshes stale cached results opportunistically for nearby cards
-- Stores extension settings locally and applies them live to open LinkedIn tabs
-- Provides a popup control menu for enable/disable, prefetch, marking, TTL, window size, concurrency, and debug mode
-- Highlights reposted items with a light red background and red border
-- Rescans dynamically loaded LinkedIn jobs content with a debounced `MutationObserver`
-- Handles SPA-style route changes on LinkedIn jobs pages
-- Limits duplicate queueing for jobs already pending or in flight
+- Reuses known job status from local cache
+- Prefetches nearby unresolved jobs before they are opened
+- Applies rate limiting and 429 backoff for safer background fetch behavior
+- Lets users control prefetch, cache TTL, concurrency, and highlighting from the popup
+- Exports debug logs as JSON from the popup
 
-Not implemented yet:
+## Installation
 
-- Advanced multi-state job markers
+1. Open `chrome://extensions` or `edge://extensions`.
+2. Enable Developer Mode.
+3. Click `Load unpacked`.
+4. Select the [extension](/Users/charliechiu/Documents/SideProject/reposted-marker/extension) directory.
+5. Reload the extension after pulling new changes.
 
-## Project Structure
+## Usage
+
+1. Open a LinkedIn jobs page under `https://www.linkedin.com/jobs/*`.
+2. Pin the extension if needed and click the toolbar icon to open the control menu.
+3. Leave `Extension Enabled` on to allow scanning and highlighting.
+4. Leave `Background Prefetch` on if you want unresolved jobs to be checked before opening them.
+5. Adjust `Prefetch Window`, `Prefetch Concurrency`, and `Cache TTL` based on how aggressive you want prefetching to be.
+6. Turn on `Debug Mode` before reproducing issues if you want useful exported logs.
+7. Use `Download Debug Log` to export the current debug log as JSON.
+
+## Control Menu
+
+The popup currently supports:
+
+- enabling or disabling the extension
+- enabling or disabling background prefetch
+- toggling left-list highlighting
+- toggling detail-panel highlighting
+- adjusting prefetch window size
+- adjusting prefetch concurrency
+- adjusting cache TTL
+- toggling debug mode
+- downloading and clearing debug logs
+
+## Architecture
 
 ```text
 extension/
   manifest.json
+  assets/
   background/
     cache.js
     fetcher.js
@@ -61,74 +87,44 @@ extension/
     styler.js
   shared/
     constants.js
+    debug-log.js
     settings.js
     utils.js
+  styles/
+    injected.css
   ui/
     popup.html
     popup.js
-  styles/
-    injected.css
 ```
-
-## Load Locally
-
-1. Open `chrome://extensions` or `edge://extensions`
-2. Enable Developer Mode
-3. Click `Load unpacked`
-4. Select the `extension/` directory from this repo
-5. If the extension was already loaded, click `Reload` after pulling new changes
-6. Click the extension icon in the toolbar to open the control menu
 
 ## How It Works
 
-- The content script runs only on `https://www.linkedin.com/jobs/*`
-- It scans job-card anchors that match `/jobs/view/` and extracts their job IDs
-- Cards are registered by job ID so rerendered DOM can reuse existing results
-- Visible card text and detail-panel text are checked first
-- Cards still marked `unknown` are considered for prefetch only when they fall inside the near-viewport window
-- Older cached results are reused immediately and refreshed in the background only for nearby cards
-- The background worker fetches the LinkedIn job page, classifies reposted status, caches the result, and sends it back to the tab
-- The worker keeps a bounded, priority-sorted queue so cards nearest the viewport win when scrolling produces many candidates
-- If LinkedIn responds with `429`, the worker pauses follow-up prefetches and waits until the retry window expires
-- Matching left-side cards are updated asynchronously when results arrive
-- The popup writes settings into `chrome.storage.local`, and content/background scripts react to those changes live
-- Debounced rescans run after DOM mutations, scroll, resize, and route changes
+- The content script scans LinkedIn job-card anchors and extracts job IDs.
+- Visible card text and detail-panel text are checked first.
+- Unknown jobs near the viewport are queued for background prefetch.
+- The background worker fetches the LinkedIn job page, classifies reposted status, caches the result, and returns it to the tab.
+- Cached results are reused immediately and refreshed opportunistically for nearby cards.
+- Popup settings are stored in `chrome.storage.local` and applied live to open LinkedIn tabs.
 
-## Control Menu
+## Verification
 
-The popup control menu currently supports:
+Manual checks for the current build:
 
-- Enable or disable the extension
-- Enable or disable background prefetch
-- Toggle left-list highlighting
-- Toggle detail-panel highlighting
-- Adjust prefetch window size
-- Adjust prefetch concurrency
-- Adjust cache TTL
-- Toggle debug mode for future diagnostics
-- Download the current debug log as JSON
+1. A visible left-list job card containing `Reposted` is highlighted automatically.
+2. Opening a reposted job highlights the detail panel.
+3. A left-side card without visible reposted text becomes highlighted later if prefetch resolves it as reposted.
+4. Scrolling loads new jobs without causing excessive request volume.
+5. Updating popup settings changes behavior on already-open LinkedIn jobs tabs.
+6. Debug log export downloads a JSON file after reproducing an issue.
 
-## Manual Verification
+## Limitations
 
-Use this build on a real LinkedIn jobs page and confirm:
+- Prefetch currently classifies jobs by matching text in fetched LinkedIn HTML.
+- Selector and parser adjustments may be needed if LinkedIn changes its markup.
+- Debug mode persists and records logs, but no on-page debug overlay exists yet.
+- There is no automated browser test harness in the repository yet.
 
-1. A visible left-list job card containing `Reposted` is highlighted automatically
-2. Opening a reposted job highlights the detail panel
-3. A left-side card without visible reposted text becomes highlighted a short time later if prefetch finds `Reposted`
-4. Scrolling to load more jobs triggers scanning and background queueing for new cards
-5. Rapid scrolling does not trigger a flood of requests for far-off cards
-6. Toggling the popup settings updates open LinkedIn jobs tabs without reloading the extension
-7. Repeated LinkedIn rerenders do not cause obvious flicker or duplicate queue churn
-
-## Known Limits
-
-- Prefetch currently fetches the job page HTML directly and classifies it by text match, so LinkedIn markup changes can require selector or parser adjustment
-- Viewport window sizes and queue limits are hardcoded defaults until the popup overrides them
-- Failed prefetches back off before retrying, and `429` responses trigger a longer cooldown
-- Debug mode is persisted now, but no debug overlay is implemented yet
-- Debug log export is most useful when debug mode is enabled before reproducing an issue
-- No automated browser test harness is included yet
-
-## Next Milestones
+## Roadmap
 
 - Milestone 5: optional full options page and deeper diagnostics
+- Milestone 6: advanced multi-state job markers
