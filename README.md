@@ -20,6 +20,8 @@ Implemented now:
 - Prefetches unresolved jobs in a background service worker
 - Persists prefetched job status in `chrome.storage.local`
 - Pushes async status results back to the active LinkedIn tab
+- Throttles prefetch traffic to one request at a time with a minimum delay between requests
+- Honors `429 Too Many Requests` responses with a cached cooldown before retrying
 - Highlights reposted items with a light red background and red border
 - Rescans dynamically loaded LinkedIn jobs content with a debounced `MutationObserver`
 - Handles SPA-style route changes on LinkedIn jobs pages
@@ -76,6 +78,7 @@ extension/
 - Visible card text and detail-panel text are checked first
 - Cards still marked `unknown` are sent to the background prefetch queue
 - The background worker fetches the LinkedIn job page, classifies reposted status, caches the result, and sends it back to the tab
+- If LinkedIn responds with `429`, the worker pauses follow-up prefetches and waits until the retry window expires
 - Matching left-side cards are updated asynchronously when results arrive
 - A debounced observer rescans after LinkedIn mutates the page
 
@@ -92,8 +95,8 @@ Use this build on a real LinkedIn jobs page and confirm:
 ## Known Limits
 
 - Prefetch currently fetches the job page HTML directly and classifies it by text match, so LinkedIn markup changes can require selector or parser adjustment
-- Queueing is bounded by simple concurrency, not viewport-aware windowing yet
-- Failed prefetches currently settle as `error` and are not aggressively retried
+- Queueing is bounded and rate-limited, but still not viewport-aware yet
+- Failed prefetches back off before retrying, and `429` responses trigger a longer cooldown
 - No automated browser test harness is included yet
 
 ## Next Milestones
