@@ -14,8 +14,23 @@
   }
 
   function extractJobIdFromUrl(url) {
-    const match = String(url || "").match(/\/jobs\/view\/(\d+)/i);
-    return match ? match[1] : null;
+    const rawUrl = String(url || "");
+    const pathMatch = rawUrl.match(/\/jobs\/view\/(\d+)/i);
+    if (pathMatch) {
+      return pathMatch[1];
+    }
+
+    try {
+      const parsedUrl = new URL(rawUrl, window.location.origin);
+      const currentJobId = parsedUrl.searchParams.get("currentJobId");
+      if (currentJobId && /^\d+$/.test(currentJobId)) {
+        return currentJobId;
+      }
+    } catch (_error) {
+      return null;
+    }
+
+    return null;
   }
 
   function getJobDataFromAnchor(anchor) {
