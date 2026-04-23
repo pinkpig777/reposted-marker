@@ -1,16 +1,20 @@
-# LinkedIn Reposted Marker
+# LinkedIn Reposted Marker 🔎
 
-LinkedIn Reposted Marker is a Chrome and Edge extension that highlights reposted LinkedIn job listings so you can scan job results faster.
+LinkedIn Reposted Marker is a Chrome and Edge extension that helps you spot reposted LinkedIn job listings at a glance, before you waste time opening the wrong role.
+
+## Why It Exists ✨
+
+LinkedIn Jobs often hides the most useful signal until after you click into a posting. This extension brings that signal forward by checking job cards, checking the open detail panel, and filling in the gaps with background prefetch.
 
 ## What It Does
 
-- Highlights reposted jobs in the left jobs list
-- Highlights reposted jobs in the right detail panel
-- Prefetches unresolved jobs in the background
-- Reuses local cache to reduce duplicate work
-- Shows runtime diagnostics in the popup (page support, queue, cache)
+- 🎯 Highlights reposted jobs in the left jobs list
+- 🧭 Highlights reposted jobs in the right detail panel
+- ⚙️ Prefetches unresolved jobs in the background
+- 💾 Reuses local cache to reduce duplicate work
+- 🩺 Shows runtime diagnostics in the popup, including page support, queue state, and cache state
 
-## High-Level Flow
+## High-Level Flow 🗺️
 
 ```mermaid
 flowchart LR
@@ -31,7 +35,7 @@ flowchart LR
   K --> G
 ```
 
-## Installation
+## Installation 🚀
 
 ### Option 1: Download ZIP from GitHub
 1. Download this repository as a ZIP file from GitHub (`Code` -> `Download ZIP`).
@@ -45,7 +49,7 @@ flowchart LR
 ### Option 2: Clone with Git
 If you cloned the repository with Git, skip the ZIP and unzip steps and load the unpacked extension directly.
 
-## Quick Start
+## Quick Start ✅
 
 1. Open `https://www.linkedin.com/jobs/search/`.
 2. Open the extension popup.
@@ -53,7 +57,7 @@ If you cloned the repository with Git, skip the ZIP and unzip steps and load the
 4. Ensure `Background Prefetch` is on (recommended).
 5. Confirm `Page Support` in popup shows `Supported`.
 
-## Supported Routes
+## Supported Routes 📍
 
 | Route | Supported |
 | --- | --- |
@@ -63,38 +67,38 @@ If you cloned the repository with Git, skip the ZIP and unzip steps and load the
 
 If the current page is not supported, scanning and highlighting are intentionally disabled.
 
-## Control Menu
+## Control Menu 🎛️
 
 ### Toggles
-- Extension Enabled
-- Background Prefetch
-- Mark Left List
-- Mark Detail Panel
-- Debug Mode
+- `Extension Enabled`
+- `Background Prefetch`
+- `Mark Left List`
+- `Mark Detail Panel`
+- `Debug Mode`
 
 ### Ranges
-- Prefetch Window
-- Prefetch Concurrency
-- Cache TTL
+- `Prefetch Window`
+- `Prefetch Concurrency`
+- `Cache TTL`
 
 ### Runtime Diagnostics
-- Page Support
-- Queue Status
-- Cache Status
+- `Page Support`
+- `Queue Status`
+- `Cache Status`
 
 ### Actions
-- Rescan Page
-- Clear Cache
-- Download Debug Log
-- Clear Log
+- `Rescan Page`
+- `Clear Cache`
+- `Download Debug Log`
+- `Clear Log`
 
-## Runtime Notes
+## Runtime Notes 🧠
 
 - Canonical route and payload validation is enforced in shared contracts.
 - Queue behavior is bounded and observable (`pending`, `active`, `paused`).
 - Cache freshness and replacement authority are shared between content and background.
 - Background fetch timeout and retry windows are settings-driven.
 
-## More Docs
+## More Docs 📚
 
 - Architecture and technical details: [Architecture.md](Architecture.md)
