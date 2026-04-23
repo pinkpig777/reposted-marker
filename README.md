@@ -1,37 +1,56 @@
 # LinkedIn Reposted Marker
 
-Chrome/Edge extension for highlighting LinkedIn job postings that visibly contain `Reposted`.
+Chrome/Edge extension for marking reposted LinkedIn job postings in the jobs list and detail panel.
 
-This repository currently implements **Milestone 1** from `spec.md`: DOM-first detection and highlighting only.
+This repository currently implements **Milestone 3** from `spec.md`, which includes:
+
+- Milestone 1: DOM-first detection and highlighting
+- Milestone 2: job ID mapping, card registry, and in-page cache reuse
+- Milestone 3: background prefetch queue with async updates back into the left job list
 
 ## Current Scope
 
-Implemented in this milestone:
+Implemented now:
 
 - Detects `Reposted` text from visible job cards in the left-side jobs list
 - Detects `Reposted` text from the visible job detail panel
+- Extracts LinkedIn job IDs from `/jobs/view/<id>/` URLs
+- Maps multiple rendered cards back to the same job ID
+- Reuses known job status across rerenders with an in-page cache
+- Prefetches unresolved jobs in a background service worker
+- Persists prefetched job status in `chrome.storage.local`
+- Pushes async status results back to the active LinkedIn tab
 - Highlights reposted items with a light red background and red border
 - Rescans dynamically loaded LinkedIn jobs content with a debounced `MutationObserver`
 - Handles SPA-style route changes on LinkedIn jobs pages
-- Avoids duplicate visual reapplication by toggling extension-owned classes and data attributes
+- Limits duplicate queueing for jobs already pending or in flight
 
 Not implemented yet:
 
-- Background prefetch queue
-- Job ID extraction and state registry
-- Persistent or in-memory cache
 - Popup or options UI
 - Settings storage
+- Prefetch windowing and viewport prioritization
+- Advanced multi-state job markers
 
 ## Project Structure
 
 ```text
 extension/
   manifest.json
+  background/
+    cache.js
+    fetcher.js
+    index.js
+    queue.js
   content/
+    cache.js
+    card-registry.js
     detector.js
     index.js
+    job-id.js
+    messaging.js
     observer.js
+    prefetch.js
     scanner.js
     styler.js
   shared/
@@ -47,31 +66,37 @@ extension/
 2. Enable Developer Mode
 3. Click `Load unpacked`
 4. Select the `extension/` directory from this repo
+5. If the extension was already loaded, click `Reload` after pulling new changes
 
 ## How It Works
 
 - The content script runs only on `https://www.linkedin.com/jobs/*`
-- It scans job-card anchors that match `/jobs/view/`
-- For each likely card container, it checks normalized visible text for the word `reposted`
-- It separately scans the visible detail panel for the same signal
+- It scans job-card anchors that match `/jobs/view/` and extracts their job IDs
+- Cards are registered by job ID so rerendered DOM can reuse existing results
+- Visible card text and detail-panel text are checked first
+- Cards still marked `unknown` are sent to the background prefetch queue
+- The background worker fetches the LinkedIn job page, classifies reposted status, caches the result, and sends it back to the tab
+- Matching left-side cards are updated asynchronously when results arrive
 - A debounced observer rescans after LinkedIn mutates the page
 
 ## Manual Verification
 
-Use this milestone build on a real LinkedIn jobs page and confirm:
+Use this build on a real LinkedIn jobs page and confirm:
 
 1. A visible left-list job card containing `Reposted` is highlighted automatically
 2. Opening a reposted job highlights the detail panel
-3. Scrolling to load more jobs triggers scanning for new cards
-4. Repeated LinkedIn rerenders do not cause obvious flicker
+3. A left-side card without visible reposted text becomes highlighted a short time later if prefetch finds `Reposted`
+4. Scrolling to load more jobs triggers scanning and background queueing for new cards
+5. Repeated LinkedIn rerenders do not cause obvious flicker or duplicate queue churn
 
 ## Known Limits
 
-- Detection is DOM-only, so jobs without a visible reposted label remain unknown
-- Selector heuristics are intentionally lightweight and may need adjustment if LinkedIn changes its layout
+- Prefetch currently fetches the job page HTML directly and classifies it by text match, so LinkedIn markup changes can require selector or parser adjustment
+- Queueing is bounded by simple concurrency, not viewport-aware windowing yet
+- Failed prefetches currently settle as `error` and are not aggressively retried
 - No automated browser test harness is included yet
 
 ## Next Milestones
 
-- Milestone 2: job ID mapping, state reuse, cache layer
-- Milestone 3: background prefetch for unresolved cards
+- Milestone 4: viewport-aware prefetch windowing and performance tuning
+- Milestone 5: popup/options UI and configurable behavior
