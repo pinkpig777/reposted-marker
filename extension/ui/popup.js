@@ -1,5 +1,6 @@
 (async function initPopup(globalScope) {
   const settingsApi = globalScope.RepostedMarker.settings;
+  const debugLogApi = globalScope.RepostedMarker.debugLog;
   const statusText = document.getElementById("statusText");
 
   const toggles = [
@@ -33,11 +34,13 @@
   async function save(partialSettings) {
     statusText.textContent = "Saving…";
     const settings = await settingsApi.update(partialSettings);
+    await debugLogApi.log("settings_updated_from_popup", partialSettings);
     render(settings);
     statusText.textContent = "Saved locally.";
   }
 
   const currentSettings = await settingsApi.init();
+  await debugLogApi.init();
   render(currentSettings);
 
   for (const id of toggles) {
@@ -62,4 +65,29 @@
       });
     });
   }
+
+  document.getElementById("downloadLogs").addEventListener("click", async () => {
+    statusText.textContent = "Preparing debug log…";
+    const entries = debugLogApi.getEntries();
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      settings: settingsApi.getSnapshot(),
+      entries
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `reposted-marker-debug-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    statusText.textContent = `Downloaded ${entries.length} log entries.`;
+  });
+
+  document.getElementById("clearLogs").addEventListener("click", async () => {
+    await debugLogApi.clear();
+    statusText.textContent = "Debug log cleared.";
+  });
 })(window);

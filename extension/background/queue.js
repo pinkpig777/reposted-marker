@@ -54,6 +54,10 @@
       const droppedTask = pendingTasks.pop();
       if (droppedTask) {
         pendingByJobId.delete(droppedTask.jobId);
+        globalScope.RepostedMarker.debugLog.log("prefetch_dropped", {
+          jobId: droppedTask.jobId,
+          reason: "queue_trim"
+        });
         broadcastRelease(droppedTask);
       }
     }
@@ -63,6 +67,10 @@
     while (pendingTasks.length > 0) {
       const pendingTask = pendingTasks.pop();
       pendingByJobId.delete(pendingTask.jobId);
+      globalScope.RepostedMarker.debugLog.log("prefetch_released", {
+        jobId: pendingTask.jobId,
+        reason: "settings_disabled"
+      });
       broadcastRelease(pendingTask);
     }
   }
@@ -70,6 +78,10 @@
   async function processTask(task) {
     const settings = globalScope.RepostedMarker.settings.getSnapshot();
     if (!settings.enabled || !settings.prefetchEnabled) {
+      globalScope.RepostedMarker.debugLog.log("prefetch_skipped", {
+        jobId: task.jobId,
+        reason: "settings_disabled"
+      });
       broadcastRelease(task);
       return;
     }
@@ -79,6 +91,10 @@
     if (!task.forceRefresh) {
       cachedRecord = await RM.cache.get(task.jobId);
       if (cachedRecord) {
+        globalScope.RepostedMarker.debugLog.log("prefetch_cache_hit", {
+          jobId: task.jobId,
+          forceRefresh: false
+        });
         broadcastResult(task, cachedRecord);
         return;
       }
@@ -103,6 +119,10 @@
 
     if (storedRecord && storedRecord.status === "rate_limited") {
       queuePausedUntil = Math.max(queuePausedUntil, storedRecord.nextRetryAt || 0);
+      globalScope.RepostedMarker.debugLog.log("prefetch_queue_paused", {
+        jobId: task.jobId,
+        pausedUntil: queuePausedUntil
+      });
     }
 
     if (storedRecord) {
@@ -162,6 +182,10 @@
   function enqueue(task, tabId) {
     const settings = globalScope.RepostedMarker.settings.getSnapshot();
     if (!settings.enabled || !settings.prefetchEnabled) {
+      globalScope.RepostedMarker.debugLog.log("prefetch_enqueue_ignored", {
+        jobId: task.jobId,
+        reason: "settings_disabled"
+      });
       return;
     }
 
@@ -194,6 +218,12 @@
     mergeTabId(nextTask, tabId);
     pendingByJobId.set(nextTask.jobId, nextTask);
     pendingTasks.push(nextTask);
+    globalScope.RepostedMarker.debugLog.log("prefetch_enqueued", {
+      jobId: nextTask.jobId,
+      priority: nextTask.priority,
+      forceRefresh: nextTask.forceRefresh,
+      pendingCount: pendingTasks.length
+    });
     sortPendingTasks();
     trimPendingTasks();
     schedule();

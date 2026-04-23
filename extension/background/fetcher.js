@@ -44,6 +44,10 @@
 
       if (response.status === 429) {
         const retryAfterMs = parseRetryAfterMillis(response.headers.get("retry-after")) || (60 * 60 * 1000);
+        globalScope.RepostedMarker.debugLog.log("prefetch_rate_limited", {
+          jobId: task.jobId,
+          retryAfterMs
+        });
         return {
           jobId: task.jobId,
           url: task.url,
@@ -55,6 +59,10 @@
       }
 
       if (!response.ok) {
+        globalScope.RepostedMarker.debugLog.log("prefetch_http_error", {
+          jobId: task.jobId,
+          statusCode: response.status
+        });
         return {
           jobId: task.jobId,
           url: task.url,
@@ -67,16 +75,24 @@
 
       const html = await response.text();
       const normalized = normalizeText(html);
+      const detectedStatus = /\breposted\b/i.test(normalized) ? "reposted" : "not_reposted";
+      globalScope.RepostedMarker.debugLog.log("prefetch_completed", {
+        jobId: task.jobId,
+        status: detectedStatus
+      });
 
       return {
         jobId: task.jobId,
         url: task.url,
-        status: /\breposted\b/i.test(normalized) ? "reposted" : "not_reposted",
+        status: detectedStatus,
         source: "prefetch",
         timestamp: Date.now()
       };
     } catch (_error) {
       clearTimeout(timeoutId);
+      globalScope.RepostedMarker.debugLog.log("prefetch_exception", {
+        jobId: task.jobId
+      });
       return {
         jobId: task.jobId,
         url: task.url,

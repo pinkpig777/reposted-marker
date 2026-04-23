@@ -147,6 +147,29 @@
         color: var(--muted);
         font-size: 12px;
       }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      button {
+        appearance: none;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+        color: var(--text);
+        padding: 8px 10px;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      button.primary {
+        border-color: #d24c3f;
+        background: #fff0ed;
+        color: var(--accent);
+      }
     </style>
   </head>
   <body>
@@ -242,10 +265,16 @@
         </section>
       </div>
 
+      <div class="actions">
+        <button id="downloadLogs" class="primary" type="button">Download Debug Log</button>
+        <button id="clearLogs" type="button">Clear Log</button>
+      </div>
+
       <div class="footer" id="statusText">Saved locally.</div>
     </main>
 
     <script src="../shared/settings.js"></script>
+    <script src="../shared/debug-log.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

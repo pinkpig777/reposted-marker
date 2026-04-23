@@ -10,6 +10,11 @@
       return;
     }
 
+    RM.debugLog.log("job_status_result_received", {
+      jobId: payload.jobId,
+      status: payload.status,
+      source: payload.source
+    });
     setPrefetchQueuedForJob(payload.jobId, false);
     const record = rememberRecord(payload);
     const settings = RM.settings.getSnapshot();
@@ -43,6 +48,9 @@
       }
 
       if (message.type === messageType.jobPrefetchReleased && message.payload && message.payload.jobId) {
+        RM.debugLog.log("job_prefetch_released", {
+          jobId: message.payload.jobId
+        });
         setPrefetchQueuedForJob(message.payload.jobId, false);
       }
     });

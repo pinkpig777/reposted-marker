@@ -34,6 +34,7 @@
       "js": [
         "shared/constants.js",
         "shared/settings.js",
+        "shared/debug-log.js",
         "shared/utils.js",
         "content/job-id.js",
         "content/cache.js",
