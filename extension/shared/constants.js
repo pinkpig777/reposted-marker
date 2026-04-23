@@ -23,7 +23,10 @@
     messageType: {
       prefetchJob: "PREFETCH_JOB",
       jobStatusResult: "JOB_STATUS_RESULT",
-      jobPrefetchReleased: "JOB_PREFETCH_RELEASED"
+      jobPrefetchReleased: "JOB_PREFETCH_RELEASED",
+      queueStatusRequest: "QUEUE_STATUS_REQUEST",
+      cacheClearRequest: "CACHE_CLEAR_REQUEST",
+      rescanPage: "RESCAN_PAGE"
     },
     attributes: {
       status: "data-rm-status",
@@ -66,4 +69,4 @@
       staleRefreshLimit: 3
     }
   };
-})(window);
+})(globalThis);

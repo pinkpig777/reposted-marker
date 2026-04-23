@@ -5,19 +5,23 @@
     let timeoutId = null;
 
     return function debounced(...args) {
-      window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(() => {
+      globalScope.clearTimeout(timeoutId);
+      timeoutId = globalScope.setTimeout(() => {
         callback.apply(this, args);
       }, waitMs);
     };
   }
 
-  function normalizeText(text) {
-    return String(text || "").replace(/\s+/g, " ").trim().toLowerCase();
+  function normalizeText(text, options) {
+    const config = options || {};
+    const base = String(text || "");
+    const withoutHtml = config.stripHtml ? base.replace(/<[^>]+>/g, " ") : base;
+
+    return withoutHtml.replace(/\s+/g, " ").trim().toLowerCase();
   }
 
   RM.utils = {
     debounce,
     normalizeText
   };
-})(window);
+})(globalThis);

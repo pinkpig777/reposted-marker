@@ -1,15 +1,85 @@
 (function initSettings(globalScope) {
   const rootKey = "extensionSettings";
-  const defaults = {
-    enabled: true,
-    prefetchEnabled: true,
-    maxPrefetchConcurrency: 1,
-    prefetchWindowSize: 900,
-    cacheTTLHours: 24,
-    markLeftList: true,
-    markDetailPanel: true,
-    debugMode: false
+  const schema = {
+    enabled: {
+      default: true,
+      type: "boolean"
+    },
+    prefetchEnabled: {
+      default: true,
+      type: "boolean"
+    },
+    maxPrefetchConcurrency: {
+      default: 1,
+      max: 3,
+      min: 1,
+      type: "number"
+    },
+    prefetchWindowSize: {
+      default: 900,
+      max: 3000,
+      min: 300,
+      type: "number"
+    },
+    cacheTTLHours: {
+      default: 24,
+      max: 168,
+      min: 1,
+      type: "number"
+    },
+    fetchTimeoutMs: {
+      default: 15000,
+      max: 60000,
+      min: 5000,
+      type: "number"
+    },
+    errorRetryMinutes: {
+      default: 30,
+      max: 180,
+      min: 1,
+      type: "number"
+    },
+    rateLimitRetryMinutes: {
+      default: 60,
+      max: 720,
+      min: 5,
+      type: "number"
+    },
+    queueMaxPendingTasks: {
+      default: 24,
+      max: 200,
+      min: 8,
+      type: "number"
+    },
+    prefetchMinIntervalMs: {
+      default: 2000,
+      max: 10000,
+      min: 500,
+      type: "number"
+    },
+    maxMemoryCacheEntries: {
+      default: 500,
+      max: 5000,
+      min: 100,
+      type: "number"
+    },
+    markLeftList: {
+      default: true,
+      type: "boolean"
+    },
+    markDetailPanel: {
+      default: true,
+      type: "boolean"
+    },
+    debugMode: {
+      default: false,
+      type: "boolean"
+    }
   };
+  const defaults = Object.keys(schema).reduce((accumulator, key) => {
+    accumulator[key] = schema[key].default;
+    return accumulator;
+  }, {});
 
   const listeners = new Set();
   let snapshot = { ...defaults };
@@ -25,32 +95,24 @@
 
   function normalize(input) {
     const source = input || {};
+    const normalized = {};
 
-    return {
-      enabled: Boolean(source.enabled ?? defaults.enabled),
-      prefetchEnabled: Boolean(source.prefetchEnabled ?? defaults.prefetchEnabled),
-      maxPrefetchConcurrency: sanitizeNumber(
-        source.maxPrefetchConcurrency,
-        defaults.maxPrefetchConcurrency,
-        1,
-        3
-      ),
-      prefetchWindowSize: sanitizeNumber(
-        source.prefetchWindowSize,
-        defaults.prefetchWindowSize,
-        300,
-        3000
-      ),
-      cacheTTLHours: sanitizeNumber(
-        source.cacheTTLHours,
-        defaults.cacheTTLHours,
-        1,
-        168
-      ),
-      markLeftList: Boolean(source.markLeftList ?? defaults.markLeftList),
-      markDetailPanel: Boolean(source.markDetailPanel ?? defaults.markDetailPanel),
-      debugMode: Boolean(source.debugMode ?? defaults.debugMode)
-    };
+    for (const [key, field] of Object.entries(schema)) {
+      const candidate = source[key];
+      if (field.type === "boolean") {
+        normalized[key] = Boolean(candidate ?? field.default);
+        continue;
+      }
+
+      normalized[key] = sanitizeNumber(
+        candidate,
+        field.default,
+        field.min,
+        field.max
+      );
+    }
+
+    return normalized;
   }
 
   function notify() {
@@ -105,6 +167,7 @@
   const namespace = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
   namespace.settings = {
     defaults: { ...defaults },
+    schema,
     getSnapshot,
     init,
     subscribe,

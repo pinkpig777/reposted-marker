@@ -33,9 +33,11 @@
       ],
       "js": [
         "shared/constants.js",
+        "shared/contracts.js",
         "shared/settings.js",
         "shared/debug-log.js",
         "shared/utils.js",
+        "shared/cache-policy.js",
         "content/job-id.js",
         "content/cache.js",
         "content/card-registry.js",
