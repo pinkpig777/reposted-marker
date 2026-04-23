@@ -22,7 +22,8 @@
     },
     messageType: {
       prefetchJob: "PREFETCH_JOB",
-      jobStatusResult: "JOB_STATUS_RESULT"
+      jobStatusResult: "JOB_STATUS_RESULT",
+      jobPrefetchReleased: "JOB_PREFETCH_RELEASED"
     },
     attributes: {
       status: "data-rm-status",
@@ -48,15 +49,21 @@
     },
     timing: {
       scanDebounceMs: 150,
+      scrollDebounceMs: 100,
       routePollMs: 500,
       cacheTtlMs: 24 * 60 * 60 * 1000,
+      staleRefreshMs: 12 * 60 * 60 * 1000,
       errorRetryMs: 30 * 60 * 1000,
       rateLimitRetryMs: 60 * 60 * 1000
     },
     prefetch: {
       maxConcurrency: 1,
       minIntervalMs: 4000,
-      requestTimeoutMs: 15000
+      requestTimeoutMs: 15000,
+      windowAbovePx: 200,
+      windowBelowPx: 900,
+      maxViewportPrefetch: 12,
+      staleRefreshLimit: 3
     }
   };
 })(window);

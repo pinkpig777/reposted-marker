@@ -1,7 +1,7 @@
 (function initContentCache(globalScope) {
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
-  const { cacheTtlMs, errorRetryMs, rateLimitRetryMs } = RM.constants.timing;
-  const { error, rateLimited } = RM.constants.status;
+  const { cacheTtlMs, staleRefreshMs, errorRetryMs, rateLimitRetryMs } = RM.constants.timing;
+  const { error, rateLimited, reposted, notReposted } = RM.constants.status;
   const sourcePriority = RM.constants.sourcePriority;
 
   const cache = new Map();
@@ -73,8 +73,21 @@
     return nextRecord;
   }
 
+  function shouldRefresh(record) {
+    if (!record) {
+      return false;
+    }
+
+    if (record.status !== reposted && record.status !== notReposted) {
+      return false;
+    }
+
+    return Date.now() - record.timestamp >= staleRefreshMs;
+  }
+
   RM.cache = {
     get,
-    set
+    set,
+    shouldRefresh
   };
 })(window);

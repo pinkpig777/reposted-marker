@@ -2,7 +2,13 @@
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
   const { messageType } = RM.constants;
   const { error, rateLimited } = RM.constants.status;
-  const { minIntervalMs } = RM.constants.prefetch;
+  const {
+    minIntervalMs,
+    windowAbovePx,
+    windowBelowPx,
+    maxViewportPrefetch,
+    staleRefreshLimit
+  } = RM.constants.prefetch;
   const { getLastQueuedAt, isPrefetchQueued, setPrefetchQueued } = RM.cardRegistry;
 
   function isCoolingDown(jobData, card) {
@@ -16,8 +22,38 @@
   }
 
   function queueJob(jobData, card) {
+    return queueJobWithOptions(jobData, card, {});
+  }
+
+  function getCardDistanceFromViewport(card) {
+    const rect = card.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+    if (rect.bottom >= 0 && rect.top <= viewportHeight) {
+      return 0;
+    }
+
+    if (rect.top > viewportHeight) {
+      return rect.top - viewportHeight;
+    }
+
+    return Math.abs(rect.bottom);
+  }
+
+  function isCardInPrefetchWindow(card) {
+    if (!card) {
+      return false;
+    }
+
+    const rect = card.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+    return rect.bottom >= -windowAbovePx && rect.top <= viewportHeight + windowBelowPx;
+  }
+
+  function queueJobWithOptions(jobData, card, options) {
     if (!jobData || !card || isPrefetchQueued(card) || isCoolingDown(jobData, card)) {
-      return;
+      return false;
     }
 
     setPrefetchQueued(card, true);
@@ -26,16 +62,63 @@
       type: messageType.prefetchJob,
       payload: {
         jobId: jobData.jobId,
-        url: jobData.url
+        url: jobData.url,
+        priority: options.priority || 0,
+        forceRefresh: Boolean(options.forceRefresh)
       }
     }, () => {
       if (chrome.runtime.lastError) {
         setPrefetchQueued(card, false);
       }
     });
+
+    return true;
+  }
+
+  function queueCandidates(candidates) {
+    if (!Array.isArray(candidates) || candidates.length === 0) {
+      return;
+    }
+
+    const inWindow = candidates
+      .filter((candidate) => candidate && candidate.card && candidate.jobData && isCardInPrefetchWindow(candidate.card))
+      .map((candidate) => {
+        return {
+          ...candidate,
+          priority: getCardDistanceFromViewport(candidate.card)
+        };
+      })
+      .sort((left, right) => left.priority - right.priority);
+
+    let staleRefreshCount = 0;
+    let queuedCount = 0;
+
+    for (const candidate of inWindow) {
+      if (queuedCount >= maxViewportPrefetch) {
+        break;
+      }
+
+      if (candidate.forceRefresh) {
+        if (staleRefreshCount >= staleRefreshLimit) {
+          continue;
+        }
+      }
+
+      const queued = queueJobWithOptions(candidate.jobData, candidate.card, candidate);
+      if (!queued) {
+        continue;
+      }
+
+      if (candidate.forceRefresh) {
+        staleRefreshCount += 1;
+      }
+
+      queuedCount += 1;
+    }
   }
 
   RM.prefetch = {
+    queueCandidates,
     queueJob
   };
 })(window);

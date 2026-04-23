@@ -114,6 +114,7 @@
   function scanJobCards() {
     const anchors = Array.from(document.querySelectorAll(selectors.jobAnchors));
     const visitedCards = new Set();
+    const prefetchCandidates = [];
 
     for (const anchor of anchors) {
       const jobData = getJobDataFromAnchor(anchor);
@@ -130,6 +131,15 @@
       const cachedRecord = cache.get(jobData.jobId);
       if (cachedRecord) {
         applyRecordToCard(card, cachedRecord);
+
+        if (cache.shouldRefresh(cachedRecord)) {
+          prefetchCandidates.push({
+            card,
+            forceRefresh: true,
+            jobData
+          });
+        }
+
         continue;
       }
 
@@ -145,8 +155,14 @@
       }
 
       setStatus(card, status.unknown, false, source.cardDom);
-      RM.prefetch.queueJob(jobData, card);
+      prefetchCandidates.push({
+        card,
+        forceRefresh: false,
+        jobData
+      });
     }
+
+    RM.prefetch.queueCandidates(prefetchCandidates);
   }
 
   function scanDetailPanel() {

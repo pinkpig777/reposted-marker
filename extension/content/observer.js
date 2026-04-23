@@ -1,6 +1,6 @@
 (function initObserver(globalScope) {
   const RM = (globalScope.RepostedMarker = globalScope.RepostedMarker || {});
-  const { scanDebounceMs, routePollMs } = RM.constants.timing;
+  const { scanDebounceMs, scrollDebounceMs, routePollMs } = RM.constants.timing;
   const { debounce } = RM.utils;
   const { scanPage } = RM.scanner;
 
@@ -8,6 +8,9 @@
     const debouncedScan = debounce(() => {
       scanPage();
     }, scanDebounceMs);
+    const debouncedScrollScan = debounce(() => {
+      scanPage();
+    }, scrollDebounceMs);
 
     const observer = new MutationObserver((mutations) => {
       const hasRelevantMutation = mutations.some((mutation) => {
@@ -34,6 +37,9 @@
       previousUrl = window.location.href;
       debouncedScan();
     }, routePollMs);
+
+    window.addEventListener("scroll", debouncedScrollScan, { passive: true });
+    window.addEventListener("resize", debouncedScrollScan, { passive: true });
 
     return observer;
   }
