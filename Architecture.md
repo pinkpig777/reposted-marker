@@ -1,86 +1,87 @@
-# LinkedIn Reposted Marker 🔎
+# LinkedIn Reposted Marker Architecture
 
-**LinkedIn Reposted Marker** is a Chrome and Edge extension that helps you spot **reposted LinkedIn job listings** at a glance, so you can scan job results faster and waste less time opening recycled posts.
+This document focuses on implementation details. For setup and day-to-day usage, see [README.md](README.md).
 
----
+## Overview
 
-## ✨ At a Glance
+The extension targets LinkedIn Jobs pages that behave like a dynamic single-page application. It combines:
 
-- 🎯 Highlights reposted jobs in the **left-side jobs list**
-- 📄 Highlights reposted jobs in the **right-side detail panel**
-- ⚡ Prefetches unresolved jobs in the background
-- 🎛️ Lets you tune behavior from the popup
-- 🐞 Exports debug logs as JSON when troubleshooting is needed
+- visible DOM detection for reposted jobs
+- background prefetch for unresolved jobs
+- job ID mapping and cache reuse across rerenders
+- viewport-aware prefetch windowing and bounded queueing
+- popup controls for runtime behavior and local settings
 
----
+## Current Implementation Status
 
-## 📦 Installation
+- Milestone 1: DOM-first detection and highlighting
+- Milestone 2: job ID mapping, card registry, and in-page cache reuse
+- Milestone 3: background prefetch queue with async updates
+- Milestone 4: viewport-aware prefetch windowing and queue prioritization
+- Control menu: popup settings and debug log export
 
-### Option 1: Download ZIP from GitHub
-1. Download this repository as a ZIP file from GitHub  
-   (`Code` → `Download ZIP`)
-2. Unzip the downloaded file
-3. Open `chrome://extensions` or `edge://extensions`
-4. Enable **Developer Mode**
-5. Click **Load unpacked**
-6. Select the extracted `reposted-marker/extension` directory
-7. If you update the source later, reload the extension in the browser
+## Project Structure
 
-### Option 2: Clone with Git
-If you cloned the repository with Git, you can skip the ZIP and unzip steps and go straight to loading the unpacked extension.
+```text
+extension/
+  manifest.json
+  assets/
+  background/
+    cache.js
+    fetcher.js
+    index.js
+    queue.js
+  content/
+    cache.js
+    card-registry.js
+    detector.js
+    index.js
+    job-id.js
+    messaging.js
+    observer.js
+    prefetch.js
+    scanner.js
+    styler.js
+  shared/
+    constants.js
+    debug-log.js
+    settings.js
+    utils.js
+  styles/
+    injected.css
+  ui/
+    popup.html
+    popup.js
+```
 
----
+## Runtime Flow
 
-## 🚀 Quick Start
+1. The content script scans LinkedIn job-card anchors and extracts job IDs.
+2. Visible card text and detail-panel text are checked first.
+3. Unknown jobs near the viewport are queued for background prefetch.
+4. The background worker fetches the LinkedIn job page, classifies reposted status, caches the result, and returns it to the tab.
+5. Cached results are reused immediately and refreshed opportunistically for nearby cards.
+6. Popup settings are stored in `chrome.storage.local` and applied live to open LinkedIn tabs.
 
-1. Open the LinkedIn Jobs search results page:  
-   `https://www.linkedin.com/jobs/search/`
-2. Pin the extension if needed, then click the toolbar icon to open the control menu
-3. Keep **Extension Enabled** turned on so scanning and highlighting can run
-4. Keep **Background Prefetch** turned on if you want unresolved jobs checked before opening them
+## Verification Checklist
 
----
+Manual checks for the current build:
 
-## 🧭 Daily Usage Tips
+1. A visible left-list job card containing `Reposted` is highlighted automatically.
+2. Opening a reposted job highlights the detail panel.
+3. A left-side card without visible reposted text becomes highlighted later if prefetch resolves it as reposted.
+4. Scrolling loads new jobs without causing excessive request volume.
+5. Updating popup settings changes behavior on already-open LinkedIn jobs tabs.
+6. Debug log export downloads a JSON file after reproducing an issue.
 
-- Adjust **Prefetch Window**, **Prefetch Concurrency**, and **Cache TTL** depending on how aggressive you want prefetching to be
-- Turn on **Debug Mode** only when you are reproducing or diagnosing issues
-- Use **Download Debug Log** to export the current debug log as JSON
-- If LinkedIn updates the page dynamically, give the extension a moment to rescan and reapply highlights
+## Limitations
 
----
+- Prefetch currently classifies jobs by matching text in fetched LinkedIn HTML.
+- Selector and parser adjustments may be needed if LinkedIn changes its markup.
+- Debug mode persists and records logs, but no on-page debug overlay exists yet.
+- There is no automated browser test harness in the repository yet.
 
-## ⚠️ Important Notes
+## Roadmap
 
-- ✅ Supported context: `https://www.linkedin.com/jobs/search/`
-- ❌ Not supported: pages under a `search-results` path or context
-- If you are outside the supported search URL context, scanning and highlighting may not work as expected
-
----
-
-## 🎛️ Control Menu
-
-The popup currently supports:
-
-- enabling or disabling the extension
-- enabling or disabling background prefetch
-- toggling left-list highlighting
-- toggling detail-panel highlighting
-- adjusting prefetch window size
-- adjusting prefetch concurrency
-- adjusting cache TTL
-- toggling debug mode
-- downloading debug logs
-- clearing debug logs
-
----
-
-## 🛠️ Why Use It?
-
-Job hunting already involves enough repetitive clicking, false hope, and questionable corporate wording. This extension helps by surfacing reposted jobs earlier, so you can focus on fresher listings instead of reopening the same recycled posts over and over.
-
----
-
-## 📚 More Docs
-
-- Architecture and technical details: [Architecture.md](Architecture.md)
+- Milestone 5: optional full options page and deeper diagnostics
+- Milestone 6: advanced multi-state job markers
