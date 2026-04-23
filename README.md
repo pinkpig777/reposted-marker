@@ -10,6 +10,42 @@ LinkedIn Reposted Marker is a Chrome and Edge extension that highlights reposted
 - Reuses local cache to reduce duplicate work
 - Shows runtime diagnostics in the popup (page support, queue, cache)
 
+## High-Level Flow
+
+```mermaid
+flowchart LR
+  A["LinkedIn Jobs Page"] --> B{"Supported Route?"}
+  B -- No --> C["Stop scanning and show unsupported status"]
+  B -- Yes --> D["Content Runtime"]
+
+  D --> E["Scan left list and detail panel"]
+  E --> F["DOM detection<br/>card_dom / detail_dom"]
+  E --> G["Extract jobId + register cards"]
+  E --> H["Queue nearby unknown jobs for prefetch"]
+
+  H --> I["PREFETCH_JOB message"]
+  I --> J["Background Service Worker"]
+  J --> K["Validate route and payload"]
+  K --> L["Priority Queue"]
+  L --> M["Background Fetcher"]
+  M --> N["Background Cache"]
+  N --> O["JOB_STATUS_RESULT message"]
+
+  O --> P["Content applyBackgroundResult"]
+  P --> Q["Update left card and detail highlight"]
+
+  R["Popup Control Menu"] --> S["Settings in chrome.storage.local"]
+  S --> D
+  S --> J
+
+  R --> T["Queue / Cache diagnostics"]
+  T --> J
+
+  R --> U["Rescan / Clear Cache / Download Debug Log"]
+  U --> D
+  U --> J
+```
+
 ## Installation
 
 ### Option 1: Download ZIP from GitHub
@@ -77,4 +113,3 @@ If the current page is not supported, scanning and highlighting are intentionall
 ## More Docs
 
 - Architecture and technical details: [Architecture.md](Architecture.md)
-
