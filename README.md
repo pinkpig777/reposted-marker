@@ -14,36 +14,21 @@ LinkedIn Reposted Marker is a Chrome and Edge extension that highlights reposted
 
 ```mermaid
 flowchart LR
-  A["LinkedIn Jobs Page"] --> B{"Supported Route?"}
-  B -- No --> C["Stop scanning and show unsupported status"]
-  B -- Yes --> D["Content Runtime"]
+  A["LinkedIn Jobs Page"] --> B["Extension Content Runtime"]
+  B --> C["Detect reposted status from visible page content"]
+  B --> D["Send unresolved jobs to background prefetch"]
 
-  D --> E["Scan left list and detail panel"]
-  E --> F["DOM detection<br/>card_dom / detail_dom"]
-  E --> G["Extract jobId + register cards"]
-  E --> H["Queue nearby unknown jobs for prefetch"]
+  D --> E["Background Worker"]
+  E --> F["Fetch + classify job status"]
+  E --> G["Cache results"]
 
-  H --> I["PREFETCH_JOB message"]
-  I --> J["Background Service Worker"]
-  J --> K["Validate route and payload"]
-  K --> L["Priority Queue"]
-  L --> M["Background Fetcher"]
-  M --> N["Background Cache"]
-  N --> O["JOB_STATUS_RESULT message"]
+  G --> H["Return results to the page"]
+  H --> I["Highlight left list and detail panel"]
 
-  O --> P["Content applyBackgroundResult"]
-  P --> Q["Update left card and detail highlight"]
-
-  R["Popup Control Menu"] --> S["Settings in chrome.storage.local"]
-  S --> D
-  S --> J
-
-  R --> T["Queue / Cache diagnostics"]
-  T --> J
-
-  R --> U["Rescan / Clear Cache / Download Debug Log"]
-  U --> D
-  U --> J
+  J["Popup Control Menu"] --> K["Settings and diagnostics"]
+  K --> B
+  K --> E
+  K --> G
 ```
 
 ## Installation
