@@ -19,8 +19,8 @@ LinkedIn Jobs often hides the most useful signal until after you click into a po
 ```mermaid
 flowchart LR
   A["LinkedIn Jobs Page"] --> B["Extension Content Runtime"]
-  B --> C["Detect reposted status from visible page content"]
-  B --> D["Send unresolved jobs to background prefetch"]
+  B --> C["Visible-page detection"]
+  B --> D["Background prefetch for unresolved jobs"]
 
   D --> E["Background Worker"]
   E --> F["Fetch + classify job status"]
