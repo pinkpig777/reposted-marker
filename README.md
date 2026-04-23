@@ -1,86 +1,80 @@
-# LinkedIn Reposted Marker 🔎
+# LinkedIn Reposted Marker
 
-**LinkedIn Reposted Marker** is a Chrome and Edge extension that helps you spot **reposted LinkedIn job listings** at a glance, so you can scan job results faster and waste less time opening recycled posts.
+LinkedIn Reposted Marker is a Chrome and Edge extension that highlights reposted LinkedIn job listings so you can scan job results faster.
 
----
+## What It Does
 
-## ✨ At a Glance
+- Highlights reposted jobs in the left jobs list
+- Highlights reposted jobs in the right detail panel
+- Prefetches unresolved jobs in the background
+- Reuses local cache to reduce duplicate work
+- Shows runtime diagnostics in the popup (page support, queue, cache)
 
-- 🎯 Highlights reposted jobs in the **left-side jobs list**
-- 📄 Highlights reposted jobs in the **right-side detail panel**
-- ⚡ Prefetches unresolved jobs in the background
-- 🎛️ Lets you tune behavior from the popup
-- 🐞 Exports debug logs as JSON when troubleshooting is needed
-
----
-
-## 📦 Installation
+## Installation
 
 ### Option 1: Download ZIP from GitHub
-1. Download this repository as a ZIP file from GitHub  
-   (`Code` → `Download ZIP`)
-2. Unzip the downloaded file
-3. Open `chrome://extensions` or `edge://extensions`
-4. Enable **Developer Mode**
-5. Click **Load unpacked**
-6. Select the extracted `reposted-marker/extension` directory
-7. If you update the source later, reload the extension in the browser
+1. Download this repository as a ZIP file from GitHub (`Code` -> `Download ZIP`).
+2. Unzip the downloaded file.
+3. Open `chrome://extensions` or `edge://extensions`.
+4. Enable Developer Mode.
+5. Click `Load unpacked`.
+6. Select the extracted `reposted-marker/extension` directory.
+7. If you update the source later, reload the extension in the browser.
 
 ### Option 2: Clone with Git
-If you cloned the repository with Git, you can skip the ZIP and unzip steps and go straight to loading the unpacked extension.
+If you cloned the repository with Git, skip the ZIP and unzip steps and load the unpacked extension directly.
 
----
+## Quick Start
 
-## 🚀 Quick Start
+1. Open `https://www.linkedin.com/jobs/search/`.
+2. Open the extension popup.
+3. Ensure `Extension Enabled` is on.
+4. Ensure `Background Prefetch` is on (recommended).
+5. Confirm `Page Support` in popup shows `Supported`.
 
-1. Open the LinkedIn Jobs search results page:  
-   `https://www.linkedin.com/jobs/search/`
-2. Pin the extension if needed, then click the toolbar icon to open the control menu
-3. Keep **Extension Enabled** turned on so scanning and highlighting can run
-4. Keep **Background Prefetch** turned on if you want unresolved jobs checked before opening them
+## Supported Routes
 
----
+| Route | Supported |
+| --- | --- |
+| `/jobs/search/` | Yes |
+| `/jobs/search-results/` | No |
+| Other LinkedIn pages | No |
 
-## 🧭 Daily Usage Tips
+If the current page is not supported, scanning and highlighting are intentionally disabled.
 
-- Adjust **Prefetch Window**, **Prefetch Concurrency**, and **Cache TTL** depending on how aggressive you want prefetching to be
-- Turn on **Debug Mode** only when you are reproducing or diagnosing issues
-- Use **Download Debug Log** to export the current debug log as JSON
-- If LinkedIn updates the page dynamically, give the extension a moment to rescan and reapply highlights
+## Control Menu
 
----
+### Toggles
+- Extension Enabled
+- Background Prefetch
+- Mark Left List
+- Mark Detail Panel
+- Debug Mode
 
-## ⚠️ Important Notes
+### Ranges
+- Prefetch Window
+- Prefetch Concurrency
+- Cache TTL
 
-- ✅ Supported context: `https://www.linkedin.com/jobs/search/`
-- ❌ Not supported: pages under a `search-results` path or context
-- If you are outside the supported search URL context, scanning and highlighting may not work as expected
+### Runtime Diagnostics
+- Page Support
+- Queue Status
+- Cache Status
 
----
+### Actions
+- Rescan Page
+- Clear Cache
+- Download Debug Log
+- Clear Log
 
-## 🎛️ Control Menu
+## Runtime Notes
 
-The popup currently supports:
+- Canonical route and payload validation is enforced in shared contracts.
+- Queue behavior is bounded and observable (`pending`, `active`, `paused`).
+- Cache freshness and replacement authority are shared between content and background.
+- Background fetch timeout and retry windows are settings-driven.
 
-- enabling or disabling the extension
-- enabling or disabling background prefetch
-- toggling left-list highlighting
-- toggling detail-panel highlighting
-- adjusting prefetch window size
-- adjusting prefetch concurrency
-- adjusting cache TTL
-- toggling debug mode
-- downloading debug logs
-- clearing debug logs
-
----
-
-## 🛠️ Why Use It?
-
-Job hunting already involves enough repetitive clicking, false hope, and questionable corporate wording. This extension helps by surfacing reposted jobs earlier, so you can focus on fresher listings instead of reopening the same recycled posts over and over.
-
----
-
-## 📚 More Docs
+## More Docs
 
 - Architecture and technical details: [Architecture.md](Architecture.md)
+- Refactor summary: [refactor_results.md](refactor_results.md)
