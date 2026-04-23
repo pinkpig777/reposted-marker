@@ -3,6 +3,19 @@
   "name": "LinkedIn Reposted Marker",
   "version": "0.3.0",
   "description": "Highlights reposted LinkedIn job listings in the jobs list and detail panel.",
+  "icons": {
+    "16": "assets/icon16.png",
+    "32": "assets/icon32.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "action": {
+    "default_title": "LinkedIn Reposted Marker",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "32": "assets/icon32.png"
+    }
+  },
   "permissions": [
     "storage"
   ],
