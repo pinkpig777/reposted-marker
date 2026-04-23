@@ -9,7 +9,8 @@
     if (!state) {
       state = {
         jobId: null,
-        prefetchQueued: false
+        prefetchQueued: false,
+        lastQueuedAt: 0
       };
       cardState.set(card, state);
     }
@@ -39,7 +40,11 @@
   }
 
   function setPrefetchQueued(card, queued) {
-    ensureState(card).prefetchQueued = queued;
+    const state = ensureState(card);
+    state.prefetchQueued = queued;
+    if (queued) {
+      state.lastQueuedAt = Date.now();
+    }
   }
 
   function isPrefetchQueued(card) {
@@ -53,8 +58,13 @@
     }
   }
 
+  function getLastQueuedAt(card) {
+    return ensureState(card).lastQueuedAt;
+  }
+
   RM.cardRegistry = {
     getCards,
+    getLastQueuedAt,
     isPrefetchQueued,
     registerCard,
     setPrefetchQueued,

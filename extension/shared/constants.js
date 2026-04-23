@@ -7,7 +7,8 @@
       notReposted: "not_reposted",
       unknown: "unknown",
       loading: "loading",
-      error: "error"
+      error: "error",
+      rateLimited: "rate_limited"
     },
     source: {
       cardDom: "card_dom",
@@ -48,10 +49,14 @@
     timing: {
       scanDebounceMs: 150,
       routePollMs: 500,
-      cacheTtlMs: 24 * 60 * 60 * 1000
+      cacheTtlMs: 24 * 60 * 60 * 1000,
+      errorRetryMs: 30 * 60 * 1000,
+      rateLimitRetryMs: 60 * 60 * 1000
     },
     prefetch: {
-      maxConcurrency: 3
+      maxConcurrency: 1,
+      minIntervalMs: 4000,
+      requestTimeoutMs: 15000
     }
   };
 })(window);
