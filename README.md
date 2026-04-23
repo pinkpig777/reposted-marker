@@ -106,6 +106,7 @@ The popup control menu currently supports:
 - Adjust prefetch concurrency
 - Adjust cache TTL
 - Toggle debug mode for future diagnostics
+- Download the current debug log as JSON
 
 ## Manual Verification
 
@@ -125,6 +126,7 @@ Use this build on a real LinkedIn jobs page and confirm:
 - Viewport window sizes and queue limits are hardcoded defaults until the popup overrides them
 - Failed prefetches back off before retrying, and `429` responses trigger a longer cooldown
 - Debug mode is persisted now, but no debug overlay is implemented yet
+- Debug log export is most useful when debug mode is enabled before reproducing an issue
 - No automated browser test harness is included yet
 
 ## Next Milestones
