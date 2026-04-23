@@ -83,6 +83,57 @@
     return null;
   }
 
+  function findDetailHeader(detailPanel) {
+    if (!detailPanel) {
+      return null;
+    }
+
+    const heading = detailPanel.querySelector("h1");
+    if (!heading) {
+      return detailPanel;
+    }
+
+    let current = heading;
+    while (current && current !== detailPanel) {
+      const text = extractVisibleText(current);
+      const rect = current.getBoundingClientRect();
+      if (detectRepostedFromElement(current) && rect.height > 40 && rect.height < 320) {
+        return current;
+      }
+
+      if (text.includes("responses managed") || text.includes("over 100 people clicked apply")) {
+        return current;
+      }
+
+      current = current.parentElement;
+    }
+
+    return heading.parentElement || detailPanel;
+  }
+
+  function extractDetailIdentity(detailPanel) {
+    if (!detailPanel) {
+      return null;
+    }
+
+    const title = RM.utils.normalizeText(
+      (detailPanel.querySelector("h1") && detailPanel.querySelector("h1").textContent) || ""
+    );
+
+    let company = "";
+    const text = extractVisibleText(detailPanel);
+    const titleIndex = title ? text.indexOf(title) : -1;
+    if (titleIndex >= 0) {
+      const trailing = text.slice(titleIndex + title.length).trim();
+      company = trailing.split(" reposted ")[0].split(" · ")[0].trim();
+    }
+
+    return {
+      company,
+      title
+    };
+  }
+
   function getCurrentDetailJobId() {
     return extractJobIdFromUrl(window.location.href) || extractJobIdFromNodeTree(findDetailPanel());
   }
@@ -108,6 +159,54 @@
 
     const cards = getCards(record.jobId).concat(findCardsByJobId(record.jobId));
     for (const card of cards) {
+      applyRecordToCard(card, record);
+    }
+  }
+
+  function findCardsByIdentity(identity) {
+    if (!identity || !identity.title) {
+      return [];
+    }
+
+    const anchors = Array.from(document.querySelectorAll(selectors.jobAnchors));
+    const matchedCards = [];
+    const seenCards = new Set();
+
+    for (const anchor of anchors) {
+      const card = findJobCardContainer(anchor);
+      if (!card || seenCards.has(card)) {
+        continue;
+      }
+
+      const cardText = extractVisibleText(card);
+      if (!cardText.includes(identity.title)) {
+        continue;
+      }
+
+      if (identity.company && !cardText.includes(identity.company)) {
+        continue;
+      }
+
+      seenCards.add(card);
+      matchedCards.push(card);
+    }
+
+    return matchedCards;
+  }
+
+  function applyRecordToLikelyCards(record, identity) {
+    const directCards = getCards(record.jobId).concat(findCardsByJobId(record.jobId));
+    if (directCards.length > 0) {
+      for (const card of directCards) {
+        applyRecordToCard(card, record);
+      }
+      return;
+    }
+
+    const fallbackCards = findCardsByIdentity(identity);
+    for (const card of fallbackCards) {
+      card.setAttribute(attributes.jobId, record.jobId);
+      registerCard(record.jobId, card);
       applyRecordToCard(card, record);
     }
   }
@@ -228,28 +327,32 @@
       return;
     }
 
+    const detailHeader = findDetailHeader(detailPanel);
+    const detailIdentity = extractDetailIdentity(detailHeader || detailPanel);
+
     const jobId = getCurrentDetailJobId();
-    const detailStatus = detectRepostedFromElement(detailPanel)
+    const detailStatus = detectRepostedFromElement(detailHeader || detailPanel)
       ? status.reposted
       : status.notReposted;
 
     if (settings.markDetailPanel) {
-      setStatus(detailPanel, detailStatus, true, source.detailDom);
+      setStatus(detailHeader || detailPanel, detailStatus, true, source.detailDom);
     } else {
-      clearStatus(detailPanel, true);
+      clearStatus(detailHeader || detailPanel, true);
     }
 
     if (!jobId) {
       return;
     }
 
-    rememberRecord({
+    const record = rememberRecord({
       jobId,
       url: window.location.href,
       status: detailStatus,
       source: source.detailDom,
       timestamp: Date.now()
     });
+    applyRecordToLikelyCards(record, detailIdentity);
   }
 
   function scanPage() {
