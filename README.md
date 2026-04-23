@@ -41,13 +41,19 @@ Current implementation status:
 
 ## Usage
 
-1. Open a LinkedIn jobs page under `https://www.linkedin.com/jobs/*`.
+1. Open the LinkedIn Jobs search results page at `https://www.linkedin.com/jobs/search/`.
 2. Pin the extension if needed and click the toolbar icon to open the control menu.
 3. Leave `Extension Enabled` on to allow scanning and highlighting.
 4. Leave `Background Prefetch` on if you want unresolved jobs to be checked before opening them.
 5. Adjust `Prefetch Window`, `Prefetch Concurrency`, and `Cache TTL` based on how aggressive you want prefetching to be.
 6. Turn on `Debug Mode` before reproducing issues if you want useful exported logs.
 7. Use `Download Debug Log` to export the current debug log as JSON.
+
+## Important Notes
+
+- The extension logic is intended for searches under `https://www.linkedin.com/jobs/search/`.
+- If the page URL is under a `search-results` path/context, the extension is currently not supported and will not work.
+- If you are not browsing from that search URL context, scanning and highlighting may not work as expected.
 
 ## Control Menu
 
