@@ -45,6 +45,11 @@
       return null;
     }
 
+    const detailPanel = findDetailPanel();
+    if (detailPanel && detailPanel.contains(anchor)) {
+      return null;
+    }
+
     const listItem = anchor.closest("li");
     if (isLikelyJobCard(listItem, anchor)) {
       return listItem;
@@ -201,6 +206,7 @@
   function findSelectedCardsForDetail(jobId) {
     const matchedCards = [];
     const seenCards = new Set();
+    const detailPanel = findDetailPanel();
 
     if (jobId) {
       const anchors = Array.from(document.querySelectorAll(selectors.jobAnchors));
@@ -223,7 +229,7 @@
     const selectedNodes = Array.from(document.querySelectorAll('[aria-current="true"], [aria-selected="true"]'));
     for (const node of selectedNodes) {
       const card = node.closest("li") || node.closest('[data-rm-job-id]') || node.closest("div");
-      if (!card || seenCards.has(card)) {
+      if (!card || seenCards.has(card) || (detailPanel && detailPanel.contains(card))) {
         continue;
       }
 
