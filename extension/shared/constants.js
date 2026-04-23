@@ -14,6 +14,11 @@
       detailDom: "detail_dom",
       prefetch: "prefetch"
     },
+    sourcePriority: {
+      card_dom: 1,
+      detail_dom: 2,
+      prefetch: 3
+    },
     messageType: {
       prefetchJob: "PREFETCH_JOB",
       jobStatusResult: "JOB_STATUS_RESULT"

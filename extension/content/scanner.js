@@ -106,8 +106,9 @@
   }
 
   function rememberRecord(record) {
-    cache.set(record);
-    applyRecordToRegisteredCards(record);
+    const storedRecord = cache.set(record);
+    applyRecordToRegisteredCards(storedRecord);
+    return storedRecord;
   }
 
   function scanJobCards() {
@@ -144,6 +145,7 @@
       }
 
       setStatus(card, status.unknown, false, source.cardDom);
+      RM.prefetch.queueJob(jobData, card);
     }
   }
 

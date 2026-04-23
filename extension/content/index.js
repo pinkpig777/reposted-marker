@@ -10,6 +10,7 @@
       return;
     }
 
+    RM.messaging.startMessageListener();
     RM.scanner.scanPage();
     RM.observer.startObserver();
   }

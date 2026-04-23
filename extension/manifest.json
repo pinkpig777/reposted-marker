@@ -1,12 +1,17 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn Reposted Marker",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Highlights reposted LinkedIn job listings in the jobs list and detail panel.",
-  "permissions": [],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://www.linkedin.com/*"
   ],
+  "background": {
+    "service_worker": "background/index.js"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -21,6 +26,8 @@
         "content/detector.js",
         "content/styler.js",
         "content/scanner.js",
+        "content/prefetch.js",
+        "content/messaging.js",
         "content/observer.js",
         "content/index.js"
       ],

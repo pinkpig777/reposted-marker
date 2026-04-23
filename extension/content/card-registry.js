@@ -46,10 +46,18 @@
     return ensureState(card).prefetchQueued;
   }
 
+  function setPrefetchQueuedForJob(jobId, queued) {
+    const cards = getCards(jobId);
+    for (const card of cards) {
+      setPrefetchQueued(card, queued);
+    }
+  }
+
   RM.cardRegistry = {
     getCards,
     isPrefetchQueued,
     registerCard,
-    setPrefetchQueued
+    setPrefetchQueued,
+    setPrefetchQueuedForJob
   };
 })(window);
